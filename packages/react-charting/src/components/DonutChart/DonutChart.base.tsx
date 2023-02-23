@@ -103,6 +103,7 @@ export class DonutChartBase extends React.Component<IDonutChartProps, IDonutChar
         className={this._classNames.root}
         ref={(rootElem: HTMLElement | null) => (this._rootElem = rootElem)}
         onMouseLeave={this._handleChartMouseLeave}
+        data-test={'Donut'}
       >
         <FocusZone direction={FocusZoneDirection.horizontal} handleTabKey={FocusZoneTabbableElements.all}>
           <div>
