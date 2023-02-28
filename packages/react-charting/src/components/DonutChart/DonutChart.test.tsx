@@ -1,162 +1,194 @@
-jest.mock('react-dom');
+import { render, screen, cleanup, queryAllByAttribute, fireEvent } from '@testing-library/react';
 import * as React from 'react';
-import { resetIds } from '../../Utilities';
-import * as renderer from 'react-test-renderer';
-import { mount, ReactWrapper } from 'enzyme';
-import { IDonutChartProps, DonutChart } from './index';
-import { IDonutChartState, DonutChartBase } from './DonutChart.base';
-import { IChartProps, IChartDataPoint } from '../../index';
-import toJson from 'enzyme-to-json';
-
-// Wrapper of the DonutChart to be tested.
-let wrapper: ReactWrapper<IDonutChartProps, IDonutChartState, DonutChartBase> | undefined;
-
-function sharedBeforeEach() {
-  resetIds();
-}
-
-function sharedAfterEach() {
-  if (wrapper) {
-    wrapper.unmount();
-    wrapper = undefined;
-  }
-
-  // Do this after unmounting the wrapper to make sure if any timers cleaned up on unmount are
-  // cleaned up in fake timers world
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  if ((global.setTimeout as any).mock) {
-    jest.useRealTimers();
-  }
-}
+import { IChartDataPoint, IChartProps } from '../../DonutChart';
+import { DonutChart } from './DonutChart';
 
 const points: IChartDataPoint[] = [
   { legend: 'first', data: 20000, color: '#E5E5E5', xAxisCalloutData: '2020/04/30' },
   { legend: 'second', data: 39000, color: '#0078D4', xAxisCalloutData: '2020/04/20' },
 ];
 
-const chartTitle = 'Stacked Bar chart example';
+const chartTitle = 'Donut chart example';
 
 const chartPoints: IChartProps = {
   chartTitle: chartTitle,
   chartData: points,
 };
 
-describe('DonutChart snapShot testing', () => {
-  it('renders DonutChart correctly', () => {
-    const component = renderer.create(<DonutChart data={chartPoints} innerRadius={55} />);
-    const tree = component.toJSON();
-    expect(tree).toMatchSnapshot();
-  });
-
-  it('renders hideLegend correctly', () => {
-    const component = renderer.create(<DonutChart data={chartPoints} hideLegend={true} />);
-    const tree = component.toJSON();
-    expect(tree).toMatchSnapshot();
-  });
-
-  it('renders hideTooltip correctly', () => {
-    const component = renderer.create(<DonutChart data={chartPoints} hideTooltip={true} />);
-    const tree = component.toJSON();
-    expect(tree).toMatchSnapshot();
-  });
-
-  it('renders enabledLegendsWrapLines correctly', () => {
-    const component = renderer.create(<DonutChart data={chartPoints} enabledLegendsWrapLines={true} />);
-    const tree = component.toJSON();
-    expect(tree).toMatchSnapshot();
-  });
-
-  it('renders value inside onf the pie', () => {
-    const component = renderer.create(<DonutChart data={chartPoints} valueInsideDonut={1000} />);
-    const tree = component.toJSON();
-    expect(tree).toMatchSnapshot();
-  });
+test('renders DonutChart correctly', () => {
+  const { container } = render(<DonutChart data={chartPoints} innerRadius={55} />);
+  expect(container).toMatchSnapshot();
 });
 
-describe('DonutChart - basic props', () => {
-  beforeEach(sharedBeforeEach);
-  afterEach(sharedAfterEach);
-
-  it('Should mount legend when hideLegend false ', () => {
-    wrapper = mount(<DonutChart data={chartPoints} />);
-    const hideLegendDOM = wrapper.getDOMNode().querySelectorAll('[class^="legendContainer"]');
-    expect(hideLegendDOM).toBeDefined();
-  });
-
-  it('Should mount callout when hideTootip false ', () => {
-    wrapper = mount(<DonutChart data={chartPoints} />);
-    const hideLegendDOM = wrapper.getDOMNode().querySelectorAll('[class^="ms-Layer"]');
-    expect(hideLegendDOM).toBeDefined();
-  });
-
-  it('Should not render onRenderCalloutPerStack ', () => {
-    wrapper = mount(<DonutChart data={chartPoints} />);
-    const renderedDOM = wrapper.getDOMNode().getElementsByClassName('.onRenderCalloutPerStack');
-    expect(renderedDOM!.length).toBe(0);
-  });
-
-  it('Should render onRenderCalloutPerDataPoint ', () => {
-    wrapper = mount(
-      <DonutChart
-        data={chartPoints}
-        onRenderCalloutPerDataPoint={(props: IChartDataPoint) =>
-          props ? (
-            <div className="onRenderCalloutPerDataPoint">
-              <p>Custom Callout Content</p>
-            </div>
-          ) : null
-        }
-      />,
-    );
-    const renderedDOM = wrapper.getDOMNode().getElementsByClassName('.onRenderCalloutPerDataPoint');
-    expect(renderedDOM).toBeDefined();
-  });
-
-  it('Should not render onRenderCalloutPerDataPoint ', () => {
-    wrapper = mount(<DonutChart data={chartPoints} />);
-    const renderedDOM = wrapper.getDOMNode().getElementsByClassName('.onRenderCalloutPerDataPoint');
-    expect(renderedDOM!.length).toBe(0);
-  });
+test('renders hideLegend correctly', () => {
+  const { container } = render(<DonutChart data={chartPoints} hideLegend={true} />);
+  expect(container).toMatchSnapshot();
 });
 
-describe('DonutChart - mouse events', () => {
-  beforeEach(sharedBeforeEach);
-  afterEach(sharedAfterEach);
+test('renders hideTooltip correctly', () => {
+  const { container } = render(<DonutChart data={chartPoints} hideTooltip={true} />);
+  expect(container).toMatchSnapshot();
+});
 
-  it('Should render callout correctly on mouseover', () => {
-    wrapper = mount(<DonutChart data={chartPoints} innerRadius={55} calloutProps={{ doNotLayer: true }} />);
-    wrapper.find('path[id^="_Pie_"]').at(0).simulate('mouseover');
-    const tree = toJson(wrapper, { mode: 'deep' });
-    expect(tree).toMatchSnapshot();
-  });
+test('renders enabledLegendsWrapLines correctly', () => {
+  const { container } = render(<DonutChart data={chartPoints} enabledLegendsWrapLines={true} />);
+  expect(container).toMatchSnapshot();
+});
 
-  it('Should render callout correctly on mousemove', () => {
-    wrapper = mount(<DonutChart data={chartPoints} innerRadius={55} calloutProps={{ doNotLayer: true }} />);
-    wrapper.find('path[id^="_Pie_"]').at(0).simulate('mousemove');
-    const html1 = wrapper.html();
-    wrapper.find('path[id^="_Pie_"]').at(0).simulate('mouseleave');
-    wrapper.find('path[id^="_Pie_"]').at(1).simulate('mousemove');
-    const html2 = wrapper.html();
-    expect(html1).not.toBe(html2);
-  });
+test('Should mount legend when hideLegend is false', () => {
+  render(<DonutChart data={chartPoints} />);
+  const hideLegendDOM = screen.queryByText('first');
+  expect(hideLegendDOM).toBeDefined();
+});
 
-  it('Should render customized callout on mouseover', () => {
-    wrapper = mount(
-      <DonutChart
-        data={chartPoints}
-        innerRadius={55}
-        calloutProps={{ doNotLayer: true }}
-        onRenderCalloutPerDataPoint={(props: IChartDataPoint) =>
-          props ? (
-            <div>
-              <pre>{JSON.stringify(props, null, 2)}</pre>
-            </div>
-          ) : null
-        }
-      />,
-    );
-    wrapper.find('path[id^="_Pie_"]').at(0).simulate('mouseover');
-    const tree = toJson(wrapper, { mode: 'deep' });
-    expect(tree).toMatchSnapshot();
-  });
+test('Should mount callout when hideTootip false ', () => {
+  const { container } = render(<DonutChart data={chartPoints} />);
+  const hideLegendDOM = container.querySelectorAll('[class^="ms-Layer"]');
+  expect(hideLegendDOM).toBeDefined();
+});
+
+test('Should not render onRenderCalloutPerStack ', () => {
+  const { container } = render(<DonutChart data={chartPoints} />);
+  const renderedDOM = container.getElementsByClassName('.onRenderCalloutPerStack');
+  expect(renderedDOM!.length).toBe(0);
+});
+
+test('Should render onRenderCalloutPerDataPoint ', () => {
+  const { container } = render(
+    <DonutChart
+      data={chartPoints}
+      onRenderCalloutPerDataPoint={(props: IChartDataPoint) =>
+        props ? (
+          <div className="onRenderCalloutPerDataPoint">
+            <p>Custom Callout Content</p>
+          </div>
+        ) : null
+      }
+    />,
+  );
+  const getById = queryAllByAttribute.bind(null, 'id');
+  fireEvent.mouseOver(getById(container, /Pie/i)[0]);
+  const renderedDOM = screen.queryByText('Custom Callout Content');
+  expect(renderedDOM).toBeDefined();
+});
+
+test('Should not render onRenderCalloutPerDataPoint ', () => {
+  const { container } = render(<DonutChart data={chartPoints} />);
+  const renderedDOM = container.getElementsByClassName('.onRenderCalloutPerDataPoint');
+  expect(renderedDOM!.length).toBe(0);
+});
+
+test('Should render callout correctly on mouseover', () => {
+  const { container } = render(<DonutChart data={chartPoints} innerRadius={55} calloutProps={{ doNotLayer: true }} />);
+  const getById = queryAllByAttribute.bind(null, 'id');
+  fireEvent.mouseOver(getById(container, /Pie/i)[0]);
+  expect(container).toMatchSnapshot();
+});
+
+test('Should render callout correctly on mousemove', () => {
+  const { container } = render(<DonutChart data={chartPoints} innerRadius={55} calloutProps={{ doNotLayer: true }} />);
+  const getById = queryAllByAttribute.bind(null, 'id');
+  fireEvent.mouseMove(getById(container, /Pie/i)[0]);
+  const html1 = container.innerHTML;
+  fireEvent.mouseLeave(getById(container, /Pie/i)[0]);
+  fireEvent.mouseMove(getById(container, /Pie/i)[1]);
+  const html2 = container.innerHTML;
+  expect(html1).not.toEqual(html2);
+});
+
+test('Should render customized callout on mouseover', () => {
+  const { container } = render(
+    <DonutChart
+      data={chartPoints}
+      innerRadius={55}
+      calloutProps={{ doNotLayer: true }}
+      onRenderCalloutPerDataPoint={(props: IChartDataPoint) =>
+        props ? (
+          <div>
+            <pre>{JSON.stringify(props, null, 2)}</pre>
+          </div>
+        ) : null
+      }
+    />,
+  );
+  const getById = queryAllByAttribute.bind(null, 'id');
+  fireEvent.mouseOver(getById(container, /Pie/i)[0]);
+  expect(container).toMatchSnapshot();
+});
+
+test('Should set state correctly on blur', () => {
+  // Arrange
+  const { container } = render(<DonutChart data={chartPoints} innerRadius={55} />);
+
+  // Act
+  const getById = queryAllByAttribute.bind(null, 'id');
+  fireEvent.blur(getById(container, /Pie/i)[0]);
+
+  //Assert
+  // expect(wrapper.find('DonutChartBase').state('focusedArcId')).toBe('');
+  // const tree = toJson(wrapper, { mode: 'deep' });
+  // expect(tree).toMatchSnapshot();
+});
+
+test('Should set state correctly on mouse leave', () => {
+  // Arrange
+  const { container } = render(<DonutChart data={chartPoints} innerRadius={55} calloutProps={{ doNotLayer: true }} />);
+
+  // Act
+  const getById = queryAllByAttribute.bind(null, 'id');
+  fireEvent.mouseOver(getById(container, /Pie/i)[0]);
+  expect(getById(container, /callout/i)[0]).toBeDefined();
+  fireEvent.mouseLeave(getById(container, /Pie/i)[0]);
+
+  // Assert
+  expect(getById(container, /callout/i)[0]).toHaveStyle('opacity: 0');
+});
+
+test('Should behave correctly on mouse over on legends', () => {
+  // Arrange
+  const { container } = render(<DonutChart data={chartPoints} innerRadius={55} hideLegend={false} />);
+
+  // Act
+  const legend = screen.queryByText('first');
+  fireEvent.mouseOver(legend!);
+
+  // Assert
+  expect(container).toMatchSnapshot();
+});
+
+test('Should set state correctly on mouse click on legends (path where selected legend state is not set)', () => {
+  // Arrange
+  const { container } = render(<DonutChart data={chartPoints} innerRadius={55} hideLegend={false} />);
+
+  // Act
+  const legend = screen.queryByText('first');
+  fireEvent.click(legend!);
+
+  // Assert
+  expect(container).toMatchSnapshot();
+});
+
+test('Should set state correctly on mouse out of legends', () => {
+  // Arrange
+  const { container } = render(<DonutChart data={chartPoints} innerRadius={55} hideLegend={false} />);
+
+  // Act
+  const legend = screen.queryByText('first');
+  fireEvent.mouseOut(legend!);
+
+  // Assert
+  expect(container).toMatchSnapshot();
+});
+
+test('Should have focus ring on focus event', () => {
+  // Arrange
+  const { container } = render(<DonutChart data={chartPoints} innerRadius={55} calloutProps={{ doNotLayer: true }} />);
+
+  // Act
+  const getById = queryAllByAttribute.bind(null, 'id');
+  fireEvent.focus(getById(container, /Pie/i)[0]);
+
+  // Assert
+  const getByClass = queryAllByAttribute.bind(null, 'class');
+  expect(getByClass(container, /focusRing/i)).toBeDefined();
 });

@@ -1098,7 +1098,7 @@ export function wrapTextInsideDonut(selectorClass: string, maxWidth: number) {
     while ((word = words.pop()!)) {
       line.push(word);
       tspan.text(line.join(' ') + ' ');
-      if (tspan.node()!.getComputedTextLength() > maxWidth && line.length > 1) {
+      if (tspan.node() && tspan.node()!.getComputedTextLength() > maxWidth && line.length > 1) {
         line.pop();
         tspan.text(line.join(' ') + ' ');
         line = [word];

@@ -126,7 +126,7 @@ export class DonutChartBase extends React.Component<IDonutChartProps, IDonutChar
                 focusedArcId={this.state.focusedArcId || ''}
                 href={this.props.href!}
                 calloutId={this._calloutId}
-                valueInsideDonut={this._toLocaleString(valueInsideDonut)}
+                valueInsideDonut={this._toLocaleString(valueInsideDonut?.toString())}
                 theme={this.props.theme!}
               />
             </svg>
@@ -224,6 +224,7 @@ export class DonutChartBase extends React.Component<IDonutChartProps, IDonutChar
   }
 
   private _focusCallback = (data: IChartDataPoint, id: string, element: SVGPathElement): void => {
+    console.log('focus called');
     this._currentHoverElement = element;
     this.setState({
       /** Show the callout if highlighted arc is focused and Hide it if unhighlighted arc is focused */
