@@ -19,8 +19,9 @@
     "skipLibCheck": true,
     "lib": ["es5", "dom"],
     "typeRoots": ["../../node_modules/@types", "../../typings"],
-    "types": ["jest", "custom-global"],
-    "isolatedModules": true
+    "types": ["jest", "custom-global", "cypress", "cypress-visual-regression"],
+    "isolatedModules": true,
+    "esModuleInterop": true
   },
   "include": ["src"]
 }

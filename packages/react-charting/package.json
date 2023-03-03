@@ -51,6 +51,7 @@
     "@types/d3-time": "^1.1.0",
     "@types/d3-time-format": "^2.1.0",
     "cypress-iframe": "1.0.1",
+    "cypress-visual-regression": "2.1.1",
     "d3-array": "1.2.1",
     "d3-axis": "1.0.8",
     "d3-format": "^1.4.4",
