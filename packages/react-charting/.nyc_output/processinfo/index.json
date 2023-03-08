@@ -1,0 +1,41 @@
+{
+  "processes": { "06e3e5ab-7894-4345-8f94-ef850c1b3f3d": { "parent": null, "children": [] } },
+  "files": {
+    "D:\\fluentui\\packages\\react-charting\\lib-commonjs\\index.js": ["06e3e5ab-7894-4345-8f94-ef850c1b3f3d"],
+    "D:\\fluentui\\packages\\react-charting\\lib-commonjs\\HorizontalBarChart.js": [
+      "06e3e5ab-7894-4345-8f94-ef850c1b3f3d"
+    ],
+    "D:\\fluentui\\packages\\react-charting\\lib-commonjs\\components\\HorizontalBarChart\\index.js": [
+      "06e3e5ab-7894-4345-8f94-ef850c1b3f3d"
+    ],
+    "D:\\fluentui\\packages\\react-charting\\lib-commonjs\\components\\HorizontalBarChart\\HorizontalBarChart.js": [
+      "06e3e5ab-7894-4345-8f94-ef850c1b3f3d"
+    ],
+    "D:\\fluentui\\packages\\react-charting\\lib-commonjs\\components\\HorizontalBarChart\\HorizontalBarChart.base.js": [
+      "06e3e5ab-7894-4345-8f94-ef850c1b3f3d"
+    ],
+    "D:\\fluentui\\packages\\react-charting\\lib-commonjs\\utilities\\index.js": [
+      "06e3e5ab-7894-4345-8f94-ef850c1b3f3d"
+    ],
+    "D:\\fluentui\\packages\\react-charting\\lib-commonjs\\utilities\\ChartHoverCard\\index.js": [
+      "06e3e5ab-7894-4345-8f94-ef850c1b3f3d"
+    ],
+    "D:\\fluentui\\packages\\react-charting\\lib-commonjs\\utilities\\ChartHoverCard\\ChartHoverCard.js": [
+      "06e3e5ab-7894-4345-8f94-ef850c1b3f3d"
+    ],
+    "D:\\fluentui\\packages\\react-charting\\lib-commonjs\\Utilities.js": ["06e3e5ab-7894-4345-8f94-ef850c1b3f3d"],
+    "D:\\fluentui\\packages\\react-charting\\lib-commonjs\\utilities\\ChartHoverCard\\ChartHoverCard.base.js": [
+      "06e3e5ab-7894-4345-8f94-ef850c1b3f3d"
+    ],
+    "D:\\fluentui\\packages\\react-charting\\lib-commonjs\\utilities\\ChartHoverCard\\ChartHoverCard.styles.js": [
+      "06e3e5ab-7894-4345-8f94-ef850c1b3f3d"
+    ],
+    "D:\\fluentui\\packages\\react-charting\\lib-commonjs\\utilities\\ChartHoverCard\\ChartHoverCard.types.js": [
+      "06e3e5ab-7894-4345-8f94-ef850c1b3f3d"
+    ],
+    "D:\\fluentui\\packages\\react-charting\\lib-commonjs\\utilities\\utilities.js": [
+      "06e3e5ab-7894-4345-8f94-ef850c1b3f3d"
+    ]
+  },
+  "externalIds": {}
+}

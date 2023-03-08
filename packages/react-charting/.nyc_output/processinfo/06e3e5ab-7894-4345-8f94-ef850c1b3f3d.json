@@ -1,0 +1,27 @@
+{
+  "parent": null,
+  "pid": 3828,
+  "argv": ["C:\\Program Files\\nodejs\\node.exe", "D:\\fluentui\\packages\\react-charting"],
+  "execArgv": [],
+  "cwd": "D:\\fluentui\\packages\\react-charting",
+  "time": 1678082810595,
+  "ppid": 1316,
+  "coverageFilename": "D:\\fluentui\\packages\\react-charting\\.nyc_output\\06e3e5ab-7894-4345-8f94-ef850c1b3f3d.json",
+  "externalId": "",
+  "uuid": "06e3e5ab-7894-4345-8f94-ef850c1b3f3d",
+  "files": [
+    "D:\\fluentui\\packages\\react-charting\\lib-commonjs\\index.js",
+    "D:\\fluentui\\packages\\react-charting\\lib-commonjs\\HorizontalBarChart.js",
+    "D:\\fluentui\\packages\\react-charting\\lib-commonjs\\components\\HorizontalBarChart\\index.js",
+    "D:\\fluentui\\packages\\react-charting\\lib-commonjs\\components\\HorizontalBarChart\\HorizontalBarChart.js",
+    "D:\\fluentui\\packages\\react-charting\\lib-commonjs\\components\\HorizontalBarChart\\HorizontalBarChart.base.js",
+    "D:\\fluentui\\packages\\react-charting\\lib-commonjs\\utilities\\index.js",
+    "D:\\fluentui\\packages\\react-charting\\lib-commonjs\\utilities\\ChartHoverCard\\index.js",
+    "D:\\fluentui\\packages\\react-charting\\lib-commonjs\\utilities\\ChartHoverCard\\ChartHoverCard.js",
+    "D:\\fluentui\\packages\\react-charting\\lib-commonjs\\Utilities.js",
+    "D:\\fluentui\\packages\\react-charting\\lib-commonjs\\utilities\\ChartHoverCard\\ChartHoverCard.base.js",
+    "D:\\fluentui\\packages\\react-charting\\lib-commonjs\\utilities\\ChartHoverCard\\ChartHoverCard.styles.js",
+    "D:\\fluentui\\packages\\react-charting\\lib-commonjs\\utilities\\ChartHoverCard\\ChartHoverCard.types.js",
+    "D:\\fluentui\\packages\\react-charting\\lib-commonjs\\utilities\\utilities.js"
+  ]
+}
