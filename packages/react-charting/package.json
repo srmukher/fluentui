@@ -35,7 +35,8 @@
     "@fluentui/scripts-webpack": "*",
     "@types/react-addons-test-utils": "0.14.18",
     "cypress": "12.6.0",
-    "nyc": "15.1.0"
+    "nyc": "15.1.0",
+    "@fluentui/theme-samples": "^8.7.43"
   },
   "dependencies": {
     "@cypress/code-coverage": "3.10.0",

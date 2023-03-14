@@ -1,18 +1,21 @@
 // jest.mock('react-dom');
 import * as React from 'react';
 // import { resetIds } from '../../Utilities';
-// import * as renderer from 'react-test-renderer';
-// import { mount, ReactWrapper } from 'enzyme';
+import * as renderer from 'react-test-renderer';
+import { mount, ReactWrapper } from 'enzyme';
 import { IDonutChartProps, DonutChart } from './index';
-// import { IDonutChartState, DonutChartBase } from './DonutChart.base';
+import { IDonutChartState, DonutChartBase } from './DonutChart.base';
 import { IChartProps, IChartDataPoint } from '../../index';
-// import toJson from 'enzyme-to-json';
+import toJson from 'enzyme-to-json';
 
-import { render, screen, queryAllByAttribute, fireEvent } from '@testing-library/react';
-import { act } from 'react-dom/test-utils/index';
+import { act, render, screen, queryAllByAttribute, fireEvent, getByText } from '@testing-library/react';
+// import { act } from 'react-dom/test-utils/index';
 
+import { DarkTheme } from '@fluentui/theme-samples';
+import { ThemeProvider } from '@fluentui/react';
+import * as utils from '../../utilities/utilities';
 // // Wrapper of the DonutChart to be tested.
-// let wrapper: ReactWrapper<IDonutChartProps, IDonutChartState, DonutChartBase> | undefined;
+let wrapper: ReactWrapper<IDonutChartProps, IDonutChartState, DonutChartBase> | undefined;
 
 // function sharedBeforeEach() {
 //   resetIds();
@@ -35,6 +38,7 @@ import { act } from 'react-dom/test-utils/index';
 const points: IChartDataPoint[] = [
   { legend: 'first', data: 20000, color: '#E5E5E5', xAxisCalloutData: '2020/04/30' },
   { legend: 'second', data: 39000, color: '#0078D4', xAxisCalloutData: '2020/04/20' },
+  { legend: 'third', data: 45000, color: '#0078D8', xAxisCalloutData: '2020/04/25' },
 ];
 
 const chartTitle = 'Donut chart example';
@@ -164,24 +168,53 @@ const chartPoints: IChartProps = {
 //   });
 // });
 
-test('Should show callout on focus', () => {
-  // Arrange
-  const { container } = render(<DonutChart data={chartPoints} innerRadius={55} width={300} height={300} />);
+// test('Should render currently on changing screen resolution', () => {
+//   // Arrange
+//   render(<DonutChart data={chartPoints} innerRadius={55} />);
+//   console.log('window.innerWidth = ', window.innerWidth);
+//   // console.log('window.outerWidth = ', window.outerWidth);
+//   console.log('window.innerHeight = ', window.innerHeight);
+//   // console.log('window.outerHeight = ', window.outerHeight);
+//   screen.debug();
 
-  // screen.debug();
+//   global.window.innerWidth = window.innerWidth / 2;
+//   global.window.innerHeight = window.innerHeight / 2;
+//   act(() => {
+//     global.window.dispatchEvent(new Event('resize'));
+//   });
 
-  // document.body.style['--zoom'] = '2';
-  // console.log('document.body.style = ', document.body.style['--zoom']);
-  // const currWidth = parseInt(document.body.style.width, 10);
-  // const currHeight = parseInt(document.body.style.height, 10);
-  console.log('currWidth = ', container.clientWidth);
-  console.log('currHeight = ', container.clientHeight);
-  console.log('currWidth = ', container.offsetWidth);
-  console.log('currHeight = ', container.offsetHeight);
-  console.log('currWidth = ', container.scrollWidth);
-  console.log('currHeight = ', container.scrollHeight);
-  // document.body.style.width = (2 * currWidth).toString();
-  // document.body.style.height = (2 * currHeight).toString();
-  // window.resizeTo(2 * currWidth, 2 * currHeight);
-  // screen.debug();
+//   console.log('after resize');
+//   console.log('window.innerWidth = ', window.innerWidth);
+//   // console.log('window.outerWidth = ', window.outerWidth);
+//   console.log('window.innerHeight = ', window.innerHeight);
+//   // console.log('window.outerHeight = ', window.outerHeight);
+//   screen.debug();
+// });
+
+// test('Should render in dark mode', () => {
+//   render(<DonutChart data={chartPoints} innerRadius={55} />);
+//   screen.debug();
+//   render(
+//     <ThemeProvider theme={DarkTheme}>
+//       <DonutChart data={chartPoints} innerRadius={55} />
+//     </ThemeProvider>,
+//   );
+//   screen.debug();
+// });
+
+test('renders value inside onf the pie', () => {
+  jest.spyOn(utils, 'wrapTextInsideDonut1').mockImplementation(jest.fn());
+  const { container } = render(<DonutChart data={chartPoints} valueInsideDonut={1000} />);
+  // const getById = queryAllByAttribute.bind(null, 'id');
+  fireEvent.mouseOver(getByText(container, '2 overflow items'));
+  screen.debug();
+  // const tree = component.toJSON();
+  // expect(tree).toMatchSnapshot();
 });
+
+// it('Should render callout correctly on mouseover', () => {
+//   wrapper = mount(<DonutChart data={chartPoints} innerRadius={55} calloutProps={{ doNotLayer: true }} />);
+//   wrapper.find('#Donut_center_text').at(0).simulate('mouseover');
+//   const tree = toJson(wrapper, { mode: 'deep' });
+//   expect(tree).toMatchSnapshot();
+// });

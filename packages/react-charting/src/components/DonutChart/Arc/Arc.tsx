@@ -1,10 +1,11 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import * as React from 'react';
 import * as shape from 'd3-shape';
 import { classNamesFunction } from '@fluentui/react/lib/Utilities';
 import { getStyles } from './Arc.styles';
 import { IChartDataPoint } from '../index';
 import { IArcProps, IArcStyles } from './index';
-import { wrapTextInsideDonut } from '../../../utilities/index';
+import { wrapTextInsideDonut, wrapTextInsideDonut1 } from '../../../utilities/index';
 
 export interface IArcState {
   isCalloutVisible?: boolean;
@@ -26,6 +27,10 @@ export class Arc extends React.Component<IArcProps, IArcState> {
     return null;
   }
 
+  public constructor(props: IArcProps) {
+    super(props);
+  }
+
   public updateChart(newProps: IArcProps): void {
     _updateChart(newProps);
   }
@@ -41,6 +46,7 @@ export class Arc extends React.Component<IArcProps, IArcState> {
     const id = this.props.uniqText! + this.props.data!.data.legend!.replace(/\s+/, '') + this.props.data!.data.data;
     const opacity: number =
       this.props.activeArc === this.props.data!.data.legend || this.props.activeArc === '' ? 1 : 0.1;
+
     return (
       <g ref={this.currentRef}>
         {!!focusedArcId && focusedArcId === id && (
@@ -61,9 +67,11 @@ export class Arc extends React.Component<IArcProps, IArcState> {
           aria-label={this._getAriaLabel()}
           role="img"
         />
-        <text textAnchor={'middle'} className={classNames.insideDonutString} y={5}>
-          {this.props.valueInsideDonut!}
-        </text>
+        <g className={classNames.nodeTextContainer}>
+          <text id="Donut_center_text" textAnchor={'middle'} className={classNames.insideDonutString} y={5}>
+            {this.props.valueInsideDonut!}
+          </text>
+        </g>
       </g>
     );
   }
@@ -77,7 +85,7 @@ export class Arc extends React.Component<IArcProps, IArcState> {
       theme: this.props.theme!,
     });
 
-    wrapTextInsideDonut(classNames.insideDonutString, this.props.innerRadius! * 2 - TEXT_PADDING);
+    wrapTextInsideDonut1(classNames.insideDonutString, this.props.innerRadius! * 2 - TEXT_PADDING);
   }
 
   private _onFocus(data: IChartDataPoint, id: string): void {
