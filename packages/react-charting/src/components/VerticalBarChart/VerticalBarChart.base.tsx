@@ -239,6 +239,8 @@ export class VerticalBarChartBase extends React.Component<IVerticalBarChartProps
     if (lineBorderWidth > 0) {
       line.push(
         <path
+          key={getId('_VBC_line_')}
+          id={getId('_VBC_line_')}
           opacity={shouldHighlight ? 1 : 0.1}
           d={linePath(lineData)!}
           fill="transparent"
@@ -250,6 +252,8 @@ export class VerticalBarChartBase extends React.Component<IVerticalBarChartProps
     }
     line.push(
       <path
+        key={getId('_VBC_line_')}
+        id={getId('_VBC_line_')}
         opacity={shouldHighlight ? 1 : 0.1}
         d={linePath(lineData)!}
         fill="transparent"
@@ -273,6 +277,7 @@ export class VerticalBarChartBase extends React.Component<IVerticalBarChartProps
         return (
           <circle
             key={index}
+            id={getId('_VBC_point_')}
             cx={!isNumericAxis ? xBarScale(item.x) + 0.5 * xBarScale.bandwidth() : xScale(item.x)}
             cy={item.useSecondaryYScale && yScaleSecondary ? yScaleSecondary(item.y) : yScale(item.y)}
             onMouseOver={this._onBarHover.bind(this, item.point, colorScale(item.y))}
@@ -544,6 +549,7 @@ export class VerticalBarChartBase extends React.Component<IVerticalBarChartProps
       return (
         <g key={point.x}>
           <rect
+            id={getId('_VBC_bar_')}
             x={xPoint}
             className={this._classNames.opacityChangeOnHover}
             y={yPoint}
@@ -603,6 +609,7 @@ export class VerticalBarChartBase extends React.Component<IVerticalBarChartProps
       return (
         <g key={point.x} transform={`translate(${0.5 * (xBarScale.bandwidth() - this._barWidth)}, 0)`}>
           <rect
+            id={getId('_VBC_bar_')}
             x={xPoint}
             y={yPoint}
             width={this._barWidth}
