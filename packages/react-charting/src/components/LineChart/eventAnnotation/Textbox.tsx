@@ -2,6 +2,7 @@ import * as React from 'react';
 import { select } from 'd3-selection';
 
 interface ITextboxProps {
+  id: string;
   text: string;
   width: number;
   x: number;

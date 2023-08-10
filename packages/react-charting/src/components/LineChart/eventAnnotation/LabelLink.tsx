@@ -1,9 +1,11 @@
 import * as React from 'react';
-import { Callout, FocusZone, FocusZoneDirection, List } from '@fluentui/react';
+import { Callout, FocusZone, FocusZoneDirection, List, getId } from '@fluentui/react';
 import { IEventAnnotation } from '../../../types/IEventAnnotation';
 import { Textbox } from './Textbox';
 import { ITheme } from '@fluentui/react/lib/Styling';
 import { getColorFromToken } from '../../../utilities/colors';
+import { get } from 'http';
+import { getById } from '../../../utilities/TestUtility';
 
 export interface ILineDef extends IEventAnnotation {
   x: number;
@@ -73,6 +75,7 @@ export const LabelLink: React.FunctionComponent<ILabelLinkProps> = props => {
     <>
       <g ref={gRef} onClick={onClick} data-is-focusable={false} style={{ cursor: 'pointer' }}>
         <Textbox
+          id={getId('_labelLink_textbox_')}
           text={text}
           x={props.labelDef.x}
           y={props.textY}

@@ -34,6 +34,9 @@ export const EventsAnnotation: React.FunctionComponent<IEventsAnnotationExtendPr
     <line key={i} x1={x.x} x2={x.x} y1={lineTopY} y2={props.chartYBottom} stroke={fill} strokeDasharray="8" />
   ));
 
+  console.log('lineDefs = ', lineDefs);
+
+  console.log('calc = ', calculateLabels(lineDefs, textWidth + textPadding, axisRange[1], axisRange[0]));
   const labelLinks = calculateLabels(lineDefs, textWidth + textPadding, axisRange[1], axisRange[0]).map((x, i) => (
     <LabelLink
       key={i}
@@ -51,6 +54,8 @@ export const EventsAnnotation: React.FunctionComponent<IEventsAnnotationExtendPr
     />
   ));
 
+  console.log('labelLinks = ', labelLinks);
+  console.log('labelLinks.len = ', labelLinks.length);
   return (
     <>
       {lines}
@@ -67,6 +72,8 @@ function calculateLabels(lineDefs: ILineDef[], textWidth: number, maxX: number, 
     }
 
     const { x } = lineDefs[currentIdx];
+    console.log('x = ', x);
+    console.log('textWidth = ', textWidth);
     const leftXBoundary = x - textWidth;
 
     // cannot render on top of other text
@@ -74,6 +81,8 @@ function calculateLabels(lineDefs: ILineDef[], textWidth: number, maxX: number, 
       return [];
     }
 
+    console.log('lastX = ', lastX);
+    console.log('leftXBoundary = ', leftXBoundary);
     // base case 2
     if (currentIdx === lineDefs.length - 1) {
       if (lastX < leftXBoundary) {
@@ -102,6 +111,8 @@ function calculateLabels(lineDefs: ILineDef[], textWidth: number, maxX: number, 
       ds => ds.x > bd && (ds.x - textWidth >= bd || ds.x + textWidth < maxX),
       currentIdx + 1,
     );
+    console.log('idx = ', idx);
+    console.log('lineDefs.length = ', lineDefs.length);
     if (idx === -1) {
       idx = lineDefs.length;
     }
@@ -116,6 +127,8 @@ function calculateLabels(lineDefs: ILineDef[], textWidth: number, maxX: number, 
     return next;
   };
 
+  console.log('minX = ', minX);
+  console.log('calculateLabel(minX, 0) = ', calculateLabel(minX, 0));
   return calculateLabel(minX, 0);
 }
 

@@ -1,10 +1,11 @@
-import { render, screen, queryAllByAttribute, fireEvent, act } from '@testing-library/react';
+import { render, screen, queryAllByAttribute, fireEvent } from '@testing-library/react';
 import { chartPoints } from './DonutChart.test';
 import { DonutChart } from './index';
 import * as React from 'react';
 import { DarkTheme } from '@fluentui/theme-samples';
 import { ThemeProvider } from '@fluentui/react';
 import * as utils from '../../utilities/utilities';
+import { act } from '@testing-library/react-hooks/dom';
 
 test('Should hide callout on mouse leave', () => {
   // Arrange
