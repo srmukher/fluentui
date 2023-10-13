@@ -23,6 +23,7 @@ export const getStyles = (props: IVerticalBarChartStyleProps): IVerticalBarChart
 
     tooltip: {
       ...theme.fonts.medium,
+      opacity: 0,
       display: 'flex',
       flexDirection: 'column',
       padding: '8px',

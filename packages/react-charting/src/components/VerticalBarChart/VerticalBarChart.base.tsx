@@ -1,7 +1,8 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import * as React from 'react';
 import { max as d3Max, min as d3Min } from 'd3-array';
 import { line as d3Line } from 'd3-shape';
-import { select as d3Select } from 'd3-selection';
+import { event as d3Event, select as d3Select } from 'd3-selection';
 import { scaleLinear as d3ScaleLinear, ScaleLinear as D3ScaleLinear, scaleBand as d3ScaleBand } from 'd3-scale';
 import { classNamesFunction, getId, getRTL } from '@fluentui/react/lib/Utilities';
 import { IProcessedStyleSet, IPalette } from '@fluentui/react/lib/Styling';
@@ -31,9 +32,9 @@ import {
   NumericAxis,
   StringAxis,
   getTypeOfAxis,
-  tooltipOfXAxislabels,
 } from '../../utilities/index';
 import { formatPrefix as d3FormatPrefix } from 'd3-format';
+import { SVGTooltipText } from '../../utilities/SVGTooltipText';
 
 enum CircleVisbility {
   show = 'visibility',
@@ -53,6 +54,7 @@ export interface IVerticalBarChartState extends IBasestate {
   hoverXValue?: string | number | null;
   callOutAccessibilityData?: IAccessibilityProps;
   calloutLegend: string;
+  tooltipText: string;
 }
 
 type ColorScale = (_p?: number) => string;
@@ -91,6 +93,7 @@ export class VerticalBarChartBase extends React.Component<IVerticalBarChartProps
       YValueHover: [],
       hoverXValue: '',
       calloutLegend: '',
+      tooltipText: '',
     };
     this._isHavingLine = this._checkForLine();
     this._calloutId = getId('callout');
@@ -141,46 +144,59 @@ export class VerticalBarChartBase extends React.Component<IVerticalBarChartProps
       tickFormat: this.props.tickFormat,
     };
     return !this._isChartEmpty() ? (
-      <CartesianChart
-        {...this.props}
-        points={this._points}
-        chartType={ChartTypes.VerticalBarChart}
-        xAxisType={this._xAxisType}
-        calloutProps={calloutProps}
-        tickParams={tickParams}
-        {...(this._isHavingLine && { isCalloutForStack: true })}
-        legendBars={legendBars}
-        datasetForXAxisDomain={this._xAxisLabels}
-        barwidth={this._barWidth}
-        focusZoneDirection={FocusZoneDirection.horizontal}
-        customizedCallout={this._getCustomizedCallout()}
-        getmargins={this._getMargins}
-        getGraphData={this._getGraphData}
-        getAxisData={this._getAxisData}
-        onChartMouseLeave={this._handleChartMouseLeave}
-        getDomainMargins={this._getDomainMargins}
-        {...(this._xAxisType !== XAxisTypes.NumericAxis && { xAxisInnerPadding: 2 / 3, xAxisOuterPadding: 0 })}
-        /* eslint-disable react/jsx-no-bind */
-        // eslint-disable-next-line react/no-children-prop
-        children={(props: IChildProps) => {
-          return (
-            <>
-              <g>{this._bars}</g>
-              {this._isHavingLine && (
-                <g>
-                  {this._createLine(
-                    props.xScale!,
-                    props.yScale!,
-                    props.containerHeight,
-                    props.containerWidth,
-                    props.yScaleSecondary,
-                  )}
-                </g>
-              )}
-            </>
-          );
-        }}
-      />
+      <>
+        <CartesianChart
+          {...this.props}
+          points={this._points}
+          chartType={ChartTypes.VerticalBarChart}
+          xAxisType={this._xAxisType}
+          calloutProps={calloutProps}
+          tickParams={tickParams}
+          {...(this._isHavingLine && { isCalloutForStack: true })}
+          legendBars={legendBars}
+          datasetForXAxisDomain={this._xAxisLabels}
+          barwidth={this._barWidth}
+          focusZoneDirection={FocusZoneDirection.horizontal}
+          customizedCallout={this._getCustomizedCallout()}
+          getmargins={this._getMargins}
+          getGraphData={this._getGraphData}
+          getAxisData={this._getAxisData}
+          onChartMouseLeave={this._handleChartMouseLeave}
+          getDomainMargins={this._getDomainMargins}
+          {...(this._xAxisType !== XAxisTypes.NumericAxis && { xAxisInnerPadding: 2 / 3, xAxisOuterPadding: 0 })}
+          /* eslint-disable react/jsx-no-bind */
+          // eslint-disable-next-line react/no-children-prop
+          children={(props: IChildProps) => {
+            return (
+              <>
+                <g>{this._bars}</g>
+                {this._isHavingLine && (
+                  <g>
+                    {this._createLine(
+                      props.xScale!,
+                      props.yScale!,
+                      props.containerHeight,
+                      props.containerWidth,
+                      props.yScaleSecondary,
+                    )}
+                  </g>
+                )}
+              </>
+            );
+          }}
+        />
+        <div id="tooltipText_VBC">
+          <SVGTooltipText
+            content={this.state.tooltipText}
+            textProps={{
+              x: 0,
+              y: 0,
+              className: this._classNames.tooltip!,
+              textAnchor: 'middle',
+            }}
+          />
+        </div>
+      </>
     ) : (
       <div
         id={this._emptyChartId}
@@ -190,6 +206,10 @@ export class VerticalBarChartBase extends React.Component<IVerticalBarChartProps
       />
     );
   }
+
+  private _handleMouseOver = (value: string) => {
+    this.setState({ tooltipText: value });
+  };
 
   private _createLine = (
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -586,12 +606,7 @@ export class VerticalBarChartBase extends React.Component<IVerticalBarChartProps
         document.getElementById(this._tooltipId) && document.getElementById(this._tooltipId)!.remove();
         // eslint-disable-next-line no-empty
       } catch (e) {}
-      const tooltipProps = {
-        tooltipCls: this._classNames.tooltip!,
-        id: this._tooltipId,
-        xAxis: xAxisElement,
-      };
-      xAxisElement && tooltipOfXAxislabels(tooltipProps);
+      xAxisElement && this._tooltipOfXAxislabels(xAxisElement);
     }
     return bars;
   }
@@ -651,13 +666,7 @@ export class VerticalBarChartBase extends React.Component<IVerticalBarChartProps
         document.getElementById(this._tooltipId) && document.getElementById(this._tooltipId)!.remove();
         // eslint-disable-next-line no-empty
       } catch (e) {}
-      const tooltipProps = {
-        tooltipCls: this._classNames.tooltip!,
-        id: this._tooltipId,
-        xAxis: xAxisElement,
-        showTooltip: this.props.showXAxisLablesTooltip,
-      };
-      xAxisElement && tooltipOfXAxislabels(tooltipProps);
+      xAxisElement && this._tooltipOfXAxislabels(xAxisElement);
     }
     return bars;
   }
@@ -840,4 +849,33 @@ export class VerticalBarChartBase extends React.Component<IVerticalBarChartProps
       (d3Max(this._points, (point: IVerticalBarChartDataPoint) => point.y)! <= 0 && !this._isHavingLine)
     );
   }
+
+  private _tooltipOfXAxislabels = (xAxis: any) => {
+    if (xAxis === null) {
+      return null;
+    }
+    const div = document.getElementById('tooltipText_VBC')!;
+    const aa = xAxis!.selectAll('#BaseSpan')._groups[0];
+    const baseSpanLength = aa && Object.keys(aa)!.length;
+    const originalDataArray: string[] = [];
+    for (let i = 0; i < baseSpanLength; i++) {
+      const originalData = aa[i].dataset && (Object.values(aa[i].dataset)[0] as string);
+      originalDataArray.push(originalData);
+    }
+    const tickObject = xAxis!.selectAll('.tick')._groups[0];
+    const tickObjectLength = tickObject && Object.keys(tickObject)!.length;
+    for (let i = 0; i < tickObjectLength; i++) {
+      const d1 = tickObject[i];
+      d3Select(d1)
+        .on('mouseover', d => {
+          this._handleMouseOver(originalDataArray[i]);
+          div.getElementsByTagName('text')[0].style.opacity = '0.9';
+          div.getElementsByTagName('text')[0].style.left = d3Event.pageX + 'px';
+          div.getElementsByTagName('text')[0].style.top = d3Event.pageY - 28 + 'px';
+        })
+        .on('mouseout', d => {
+          div.getElementsByTagName('text')[0].style.opacity = '0';
+        });
+    }
+  };
 }
