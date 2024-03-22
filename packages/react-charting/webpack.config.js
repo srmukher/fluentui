@@ -13,6 +13,15 @@ module.exports = [
     output: 'FluentUIReactCharting',
     customConfig: {
       optimization: {
+        splitChunks: {
+          cacheGroups: {
+            commons: {
+              test: /[\\/]node_modules[\\/]/,
+              name: 'vendors',
+              chunks: 'all',
+            },
+          },
+        },
         minimizer: [
           new TerserPlugin({
             parallel: true,
