@@ -4,7 +4,7 @@ import { select as d3Select } from 'd3-selection';
 import { Axis as D3Axis } from 'd3-axis';
 import { scaleBand as d3ScaleBand, scaleLinear as d3ScaleLinear } from 'd3-scale';
 import { classNamesFunction, getId, getRTL, memoizeFunction, warnDeprecations } from '@fluentui/react/lib/Utilities';
-import { IProcessedStyleSet, IPalette } from '@fluentui/react/lib/Styling';
+import { IProcessedStyleSet } from '@fluentui/react/lib/Styling';
 import { DirectionalHint } from '@fluentui/react/lib/Callout';
 import { FocusZoneDirection } from '@fluentui/react-focus';
 import {
@@ -131,7 +131,7 @@ export class GroupedVerticalBarChartBase extends React.Component<
     this._xAxisLabels = xAxisLabels;
     this._datasetForBars = datasetForBars;
     this._xAxisType = getTypeOfAxis(points[0].name, true) as XAxisTypes;
-    const legends: JSX.Element = this._getLegendData(points, this.props.theme!.palette);
+    const legends: JSX.Element = this._getLegendData(points);
     this._adjustProps();
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -519,9 +519,9 @@ export class GroupedVerticalBarChartBase extends React.Component<
     });
   }
 
-  private _getLegendData = (points: IGroupedVerticalBarChartData[], palette: IPalette): JSX.Element => {
+  private _getLegendData = (points: IGroupedVerticalBarChartData[]): JSX.Element => {
     const data = points;
-    const defaultPalette: string[] = [palette.blueLight, palette.blue, palette.blueMid, palette.red, palette.black];
+    const defaultPalette: string[] = ['#00bcf2', '#0078d4', '#00188f', '#e81123', '#000000'];
     const actions: ILegend[] = [];
 
     data.forEach((singleChartData: IGroupedVerticalBarChartData) => {

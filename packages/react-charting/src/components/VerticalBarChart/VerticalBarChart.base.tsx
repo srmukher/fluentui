@@ -9,7 +9,7 @@ import {
   scaleUtc as d3ScaleUtc,
 } from 'd3-scale';
 import { classNamesFunction, getId, getRTL } from '@fluentui/react/lib/Utilities';
-import { IProcessedStyleSet, IPalette } from '@fluentui/react/lib/Styling';
+import { IProcessedStyleSet } from '@fluentui/react/lib/Styling';
 import { DirectionalHint } from '@fluentui/react/lib/Callout';
 import {
   IAccessibilityProps,
@@ -124,7 +124,7 @@ export class VerticalBarChartBase extends React.Component<IVerticalBarChartProps
       d3Max(this._points, (point: IVerticalBarChartDataPoint) => point.y)!,
       this.props.yMaxValue || 0,
     );
-    const legendBars: JSX.Element = this._getLegendData(this._points, this.props.theme!.palette);
+    const legendBars: JSX.Element = this._getLegendData(this._points);
     this._classNames = getClassNames(this.props.styles!, {
       theme: this.props.theme!,
       legendColor: this.state.color,
@@ -221,7 +221,7 @@ export class VerticalBarChartBase extends React.Component<IVerticalBarChartProps
     const { xBarScale } = this._getScales(containerHeight, containerWidth);
     const colorScale = this._createColors();
     const { theme } = this.props;
-    const { data, lineLegendColor = theme!.palette.yellow, lineLegendText } = this.props;
+    const { data, lineLegendColor = '#ffb900', lineLegendText } = this.props;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const lineData: Array<any> = [];
     const line: JSX.Element[] = [];
@@ -356,8 +356,7 @@ export class VerticalBarChartBase extends React.Component<IVerticalBarChartProps
   private _adjustProps(): void {
     this._points = this.props.data || [];
     this._barWidth = getBarWidth(this.props.barWidth, this.props.maxBarWidth);
-    const { palette } = this.props.theme!;
-    this._colors = this.props.colors || [palette.blueLight, palette.blue, palette.blueMid, palette.blueDark];
+    this._colors = this.props.colors || ['#00bcf2', '#0078d4', '#00188f', '#002050'];
     this._isHavingLine = this._checkForLine();
     this._xAxisInnerPadding = getScalePadding(this.props.xAxisInnerPadding, this.props.xAxisPadding, 2 / 3);
     this._xAxisOuterPadding = getScalePadding(this.props.xAxisOuterPadding, this.props.xAxisPadding, 0);
@@ -433,8 +432,8 @@ export class VerticalBarChartBase extends React.Component<IVerticalBarChartProps
     const { useSingleColor = false } = this.props;
     if (useSingleColor) {
       return (_p?: number) => {
-        const { theme, colors } = this.props;
-        return colors && colors.length > 0 ? colors[0] : theme!.palette.blueLight;
+        const { colors } = this.props;
+        return colors && colors.length > 0 ? colors[0] : '#00bcf2';
       };
     }
     const domainValues = [];
@@ -453,8 +452,8 @@ export class VerticalBarChartBase extends React.Component<IVerticalBarChartProps
     point: IVerticalBarChartDataPoint,
   ): { YValueHover: IYValueHover[]; hoverXValue: string | number | null } => {
     const YValueHover: IYValueHover[] = [];
-    const { theme, useSingleColor = false } = this.props;
-    const { data, lineLegendText, lineLegendColor = theme!.palette.yellow } = this.props;
+    const { useSingleColor = false } = this.props;
+    const { data, lineLegendText, lineLegendColor = '#ffb900' } = this.props;
     const selectedPoint = data!.filter((xDataPoint: IVerticalBarChartDataPoint) => xDataPoint.x === point.x);
     // there might be no y value of the line for the hovered bar. so we need to check this condition
     if (this._isHavingLine && selectedPoint[0].lineData?.y !== undefined) {
@@ -570,8 +569,7 @@ export class VerticalBarChartBase extends React.Component<IVerticalBarChartProps
     point: IVerticalBarChartDataPoint,
     refSelected: React.MouseEvent<SVGElement> | SVGCircleElement,
   ) => {
-    const { theme } = this.props;
-    const { lineLegendText = '', lineLegendColor = theme!.palette.yellow } = this.props;
+    const { lineLegendText = '', lineLegendColor = '#ffb900' } = this.props;
     this.setState({
       refSelected,
       isCalloutVisible: true,
@@ -876,9 +874,9 @@ export class VerticalBarChartBase extends React.Component<IVerticalBarChartProps
     });
   }
 
-  private _getLegendData = (data: IVerticalBarChartDataPoint[], palette: IPalette): JSX.Element => {
-    const { theme, useSingleColor } = this.props;
-    const { lineLegendText, lineLegendColor = theme!.palette.yellow } = this.props;
+  private _getLegendData = (data: IVerticalBarChartDataPoint[]): JSX.Element => {
+    const { useSingleColor } = this.props;
+    const { lineLegendText, lineLegendColor = '#ffb900' } = this.props;
     const actions: ILegend[] = [];
     data.forEach((point: IVerticalBarChartDataPoint, _index: number) => {
       const color: string = !useSingleColor ? point.color! : this._createColors()(1);

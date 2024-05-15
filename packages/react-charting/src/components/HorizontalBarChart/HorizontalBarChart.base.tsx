@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { classNamesFunction, find, getId, getRTL } from '@fluentui/react/lib/Utilities';
-import { IProcessedStyleSet, IPalette } from '@fluentui/react/lib/Styling';
+import { IProcessedStyleSet } from '@fluentui/react/lib/Styling';
 import {
   IAccessibilityProps,
   IChartProps,
@@ -76,9 +76,8 @@ export class HorizontalBarChartBase extends React.Component<IHorizontalBarChartP
   }
 
   public render(): JSX.Element {
-    const { data, theme } = this.props;
+    const { data } = this.props;
     this._adjustProps();
-    const { palette } = theme!;
     let datapoint: number | undefined = 0;
     return !this._isChartEmpty() ? (
       <div className={this._classNames.root} onMouseLeave={this._handleChartMouseLeave}>
@@ -94,13 +93,13 @@ export class HorizontalBarChartBase extends React.Component<IHorizontalBarChartP
               x: points.chartData![0].horizontalBarChartdata!.y - datapoint!,
               y: points.chartData![0].horizontalBarChartdata!.y,
             },
-            color: palette.neutralLight,
+            color: '#edebe9',
           };
 
           // Hide right side text of chart title for absolute-scale variant
           const chartDataText =
             this.props.variant === HorizontalBarChartVariant.AbsoluteScale ? null : this._getChartDataText(points!);
-          const bars = this._createBars(points!, palette);
+          const bars = this._createBars(points!);
           const keyVal = this._uniqLineText + '_' + index;
           const classNames = getClassNames(this.props.styles!, {
             theme: this.props.theme!,
@@ -306,12 +305,12 @@ export class HorizontalBarChartBase extends React.Component<IHorizontalBarChartP
    * Extra margin is also provided, in the x value to provide some spacing in between the bars
    */
 
-  private _createBars(data: IChartProps, palette: IPalette): JSX.Element[] {
+  private _createBars(data: IChartProps): JSX.Element[] {
     const noOfBars =
       data.chartData?.reduce((count: number, point: IChartDataPoint) => (count += (point.data || 0) > 0 ? 1 : 0), 0) ||
       1;
     const totalMarginPercent = this.state.barSpacingInPercent * (noOfBars - 1);
-    const defaultPalette: string[] = [palette.blueLight, palette.blue, palette.blueMid, palette.red, palette.black];
+    const defaultPalette: string[] = ['#00bcf2', '#0078d4', '#00188f', '#e81123', '#000000'];
     // calculating starting point of each bar and it's range
     const startingPoint: number[] = [];
     const total = data.chartData!.reduce(

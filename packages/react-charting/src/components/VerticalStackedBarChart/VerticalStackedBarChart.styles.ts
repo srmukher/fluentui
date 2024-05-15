@@ -25,7 +25,7 @@ export const getStyles = (props: IVerticalStackedBarChartStyleProps): IVerticalS
     barLabel: {
       fontSize: FontSizes.small,
       fontWeight: FontWeights.semibold,
-      fill: theme.palette.neutralPrimary,
+      fill: '#323130',
     },
   };
 };

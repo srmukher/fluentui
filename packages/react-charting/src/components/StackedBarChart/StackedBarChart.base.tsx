@@ -83,12 +83,12 @@ export class StackedBarChartBase extends React.Component<IStackedBarChartProps, 
 
       if (benchmarkData) {
         // benchmark color is used to render color for benchmark triangle and benchmark legend
-        benchmarkData.color = benchmarkData.color || palette.neutralTertiary;
+        benchmarkData.color = benchmarkData.color || '#a19f9d';
       }
 
       if (targetData) {
         // target color is used to render color for target triangle and target legend
-        targetData.color = targetData.color || palette.neutralSecondary;
+        targetData.color = targetData.color || '#605e5c';
       }
 
       const bars = this._createBarsAndLegends(data!, barHeight!, palette, benchmarkData, targetData);
@@ -236,7 +236,7 @@ export class StackedBarChartBase extends React.Component<IStackedBarChartProps, 
       1;
     const totalMarginPercent = this.state.barSpacingInPercent * (noOfBars - 1);
 
-    const defaultPalette: string[] = [palette.blueLight, palette.blue, palette.blueMid, palette.red, palette.black];
+    const defaultPalette: string[] = ['#00bcf2', '#0078d4', '#00188f', '#e81123', '#000000'];
     const legendDataItems: ILegend[] = [];
     // calculating starting point of each bar and it's range
     const startingPoint: number[] = [];
@@ -371,12 +371,7 @@ export class StackedBarChartBase extends React.Component<IStackedBarChartProps, 
     );
     return [
       total === 0
-        ? [
-            this._generateEmptyBar(
-              barHeight,
-              this.props.barBackgroundColor ? this.props.barBackgroundColor : palette.neutralLight,
-            ),
-          ]
+        ? [this._generateEmptyBar(barHeight, this.props.barBackgroundColor ? this.props.barBackgroundColor : '#edebe9')]
         : bars,
       legends,
     ];

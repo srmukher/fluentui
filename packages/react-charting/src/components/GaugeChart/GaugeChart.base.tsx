@@ -377,7 +377,7 @@ export class GaugeChartBase extends React.Component<IGaugeChartProps, IGaugeChar
       segments.push({
         legend: 'Unknown',
         size: maxValue - total,
-        color: theme!.palette.neutralLight,
+        color: '#edebe9',
         start: total,
         end: maxValue,
       });

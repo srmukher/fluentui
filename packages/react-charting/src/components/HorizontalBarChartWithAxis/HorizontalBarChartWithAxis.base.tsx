@@ -3,7 +3,7 @@ import { max as d3Max } from 'd3-array';
 import { select as d3Select } from 'd3-selection';
 import { scaleLinear as d3ScaleLinear, ScaleLinear as D3ScaleLinear, scaleBand as d3ScaleBand } from 'd3-scale';
 import { classNamesFunction, getId, getRTL } from '@fluentui/react/lib/Utilities';
-import { IProcessedStyleSet, IPalette } from '@fluentui/react/lib/Styling';
+import { IProcessedStyleSet } from '@fluentui/react/lib/Styling';
 import { DirectionalHint } from '@fluentui/react/lib/Callout';
 import { ILegend } from '../../components/Legends/Legends.types';
 import { Legends } from '../../components/Legends/Legends';
@@ -109,7 +109,7 @@ export class HorizontalBarChartWithAxisBase extends React.Component<
       d3Max(this._points, (point: IHorizontalBarChartWithAxisDataPoint) => point.x)!,
       this.props.xMaxValue || 0,
     );
-    const legendBars: JSX.Element = this._getLegendData(this._points, this.props.theme!.palette);
+    const legendBars: JSX.Element = this._getLegendData(this._points);
     this._classNames = getClassNames(this.props.styles!, {
       theme: this.props.theme!,
       legendColor: this.state.color,
@@ -168,8 +168,7 @@ export class HorizontalBarChartWithAxisBase extends React.Component<
   private _adjustProps(): void {
     this._points = this.props.data || [];
     this._barHeight = this.props.barHeight || 32;
-    const { palette } = this.props.theme!;
-    this._colors = this.props.colors || [palette.blueLight, palette.blue, palette.blueMid, palette.blueDark];
+    this._colors = this.props.colors || ['#00bcf2', '#0078d4', '#00188f', '#002050'];
   }
 
   private _getMargins = (margins: IMargins) => {
@@ -238,8 +237,8 @@ export class HorizontalBarChartWithAxisBase extends React.Component<
     const { useSingleColor = false } = this.props;
     if (useSingleColor) {
       return (_p?: number) => {
-        const { theme, colors } = this.props;
-        return colors && colors.length > 0 ? colors[0] : theme!.palette.blueLight;
+        const { colors } = this.props;
+        return colors && colors.length > 0 ? colors[0] : '#00bcf2';
       };
     }
     const domainValues = [];
@@ -634,7 +633,7 @@ export class HorizontalBarChartWithAxisBase extends React.Component<
     }
   }
 
-  private _getLegendData = (data: IHorizontalBarChartWithAxisDataPoint[], palette: IPalette): JSX.Element => {
+  private _getLegendData = (data: IHorizontalBarChartWithAxisDataPoint[]): JSX.Element => {
     const { useSingleColor } = this.props;
     const actions: ILegend[] = [];
     data.forEach((point: IHorizontalBarChartWithAxisDataPoint, _index: number) => {

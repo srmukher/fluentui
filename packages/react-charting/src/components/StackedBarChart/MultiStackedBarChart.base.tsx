@@ -98,7 +98,7 @@ export class MultiStackedBarChartBase extends React.Component<IMultiStackedBarCh
       const { data, theme, culture } = this.props;
       this._adjustProps();
       const { palette } = theme!;
-      const legends = this._getLegendData(data!, this.props.hideRatio!, palette);
+      const legends = this._getLegendData(data!, this.props.hideRatio!);
       const { isCalloutVisible } = this.state;
 
       this._classNames = getClassNames(this.props.styles!, {
@@ -190,7 +190,7 @@ export class MultiStackedBarChartBase extends React.Component<IMultiStackedBarCh
       1;
     const totalMarginPercent = this.state.barSpacingInPercent * (noOfBars - 1);
     const { culture } = this.props;
-    const defaultPalette: string[] = [palette.blueLight, palette.blue, palette.blueMid, palette.red, palette.black];
+    const defaultPalette: string[] = ['#00bcf2', '#0078d4', '#00188f', '#e81123', '#000000'];
     // calculating starting point of each bar and it's range
     const startingPoint: number[] = [];
     const barTotalValue = data.chartData!.reduce(
@@ -247,7 +247,7 @@ export class MultiStackedBarChartBase extends React.Component<IMultiStackedBarCh
       const color: string = point.color
         ? point.color
         : point.placeHolder
-        ? palette.neutralLight
+        ? '#edebe9'
         : defaultPalette[Math.floor(Math.random() * 4 + 1)];
       const pointData = point.data ? point.data : 0;
       if (index > 0) {
@@ -354,7 +354,7 @@ export class MultiStackedBarChartBase extends React.Component<IMultiStackedBarCh
               y={0}
               width={'100%'}
               height={barHeight}
-              fill={palette.neutralLight}
+              fill={'#edebe9'}
             />
           </g>,
         );
@@ -362,15 +362,7 @@ export class MultiStackedBarChartBase extends React.Component<IMultiStackedBarCh
       if (barTotalValue === 0) {
         bars.push(
           <g key={'empty'} className={this._classNames.noData} onClick={this._redirectToUrl.bind(this, href)}>
-            <rect
-              key={0}
-              id={this._barIdEmpty}
-              x={'0%'}
-              y={0}
-              width={'100%'}
-              height={barHeight}
-              fill={palette.neutralLight}
-            />
+            <rect key={0} id={this._barIdEmpty} x={'0%'} y={0} width={'100%'} height={barHeight} fill={'#edebe9'} />
           </g>,
         );
       }
@@ -466,8 +458,8 @@ export class MultiStackedBarChartBase extends React.Component<IMultiStackedBarCh
     });
   }
 
-  private _getLegendData = (data: IChartProps[], hideRatio: boolean[], palette: IPalette): JSX.Element => {
-    const defaultPalette: string[] = [palette.blueLight, palette.blue, palette.blueMid, palette.red, palette.black];
+  private _getLegendData = (data: IChartProps[], hideRatio: boolean[]): JSX.Element => {
+    const defaultPalette: string[] = ['#00bcf2', '#0078d4', '#00188f', '#e81123', '#000000'];
     const actions: ILegend[] = [];
     data.forEach((singleChartData: IChartProps, index: number) => {
       const validChartData = singleChartData.chartData!.filter((_: IChartDataPoint) => !_.placeHolder);

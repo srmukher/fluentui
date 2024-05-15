@@ -2,7 +2,6 @@ import { render, screen, fireEvent, act } from '@testing-library/react';
 import * as React from 'react';
 import { DarkTheme } from '@fluentui/theme-samples';
 import { ThemeProvider, resetIds } from '@fluentui/react';
-import { DefaultPalette } from '@fluentui/react/lib/Styling';
 import { IVSChartDataPoint, IVerticalStackedChartProps } from '../../index';
 import { VerticalStackedBarChart } from './VerticalStackedBarChart';
 import {
@@ -50,21 +49,21 @@ function sharedAfterEach() {
 }
 
 const firstChartPoints: IVSChartDataPoint[] = [
-  { legend: 'Metadata1', data: 2, color: DefaultPalette.blue },
-  { legend: 'Metadata2', data: 0.5, color: DefaultPalette.blueMid },
-  { legend: 'Metadata3', data: 0, color: DefaultPalette.blueLight },
+  { legend: 'Metadata1', data: 2, color: '#0078d4' },
+  { legend: 'Metadata2', data: 0.5, color: '#00188f' },
+  { legend: 'Metadata3', data: 0, color: '#00bcf2' },
 ];
 
 const secondChartPoints: IVSChartDataPoint[] = [
-  { legend: 'Metadata1', data: 30, color: DefaultPalette.blue },
-  { legend: 'Metadata2', data: 3, color: DefaultPalette.blueMid },
-  { legend: 'Metadata3', data: 40, color: DefaultPalette.blueLight },
+  { legend: 'Metadata1', data: 30, color: '#0078d4' },
+  { legend: 'Metadata2', data: 3, color: '#00188f' },
+  { legend: 'Metadata3', data: 40, color: '#00bcf2' },
 ];
 
 const thirdChartPoints: IVSChartDataPoint[] = [
-  { legend: 'Metadata1', data: 10, color: DefaultPalette.blue },
-  { legend: 'Metadata2', data: 60, color: DefaultPalette.blueMid },
-  { legend: 'Metadata3', data: 30, color: DefaultPalette.blueLight },
+  { legend: 'Metadata1', data: 10, color: '#0078d4' },
+  { legend: 'Metadata2', data: 60, color: '#00188f' },
+  { legend: 'Metadata3', data: 30, color: '#00bcf2' },
 ];
 
 const simplePoints = [
@@ -72,17 +71,17 @@ const simplePoints = [
     chartData: firstChartPoints,
     xAxisPoint: 'January',
     activeLegend: 'Supported Builds',
-    lineData: [{ y: 42, legend: 'Supported Builds', color: DefaultPalette.magentaLight }],
+    lineData: [{ y: 42, legend: 'Supported Builds', color: '#e3008c' }],
   },
   {
     chartData: secondChartPoints,
     xAxisPoint: 'February',
-    lineData: [{ y: 41, legend: 'Supported Builds', color: DefaultPalette.magentaLight }],
+    lineData: [{ y: 41, legend: 'Supported Builds', color: '#e3008c' }],
   },
   {
     chartData: thirdChartPoints,
     xAxisPoint: 'March',
-    lineData: [{ y: 100, legend: 'Supported Builds', color: DefaultPalette.magentaLight }],
+    lineData: [{ y: 100, legend: 'Supported Builds', color: '#e3008c' }],
   },
 ];
 
@@ -90,35 +89,35 @@ const datePoints = [
   {
     chartData: firstChartPoints,
     xAxisPoint: new Date('2019/05/01'),
-    lineData: [{ y: 42, legend: 'Supported Builds', color: DefaultPalette.magentaLight }],
+    lineData: [{ y: 42, legend: 'Supported Builds', color: '#e3008c' }],
   },
   {
     chartData: secondChartPoints,
     xAxisPoint: new Date('2019/09/01'),
-    lineData: [{ y: 41, legend: 'Supported Builds', color: DefaultPalette.magentaLight }],
+    lineData: [{ y: 41, legend: 'Supported Builds', color: '#e3008c' }],
   },
   {
     chartData: thirdChartPoints,
     xAxisPoint: new Date('2020/03/01'),
-    lineData: [{ y: 100, legend: 'Supported Builds', color: DefaultPalette.magentaLight }],
+    lineData: [{ y: 100, legend: 'Supported Builds', color: '#e3008c' }],
   },
 ];
 const simplePointsWithLine = [
   {
     chartData: firstChartPoints,
     xAxisPoint: 0,
-    lineData: [{ y: 42, legend: 'Supported Builds', color: DefaultPalette.magentaLight }],
+    lineData: [{ y: 42, legend: 'Supported Builds', color: '#e3008c' }],
   },
   {
     chartData: secondChartPoints,
     xAxisPoint: 20,
-    lineData: [{ y: 33, legend: 'Supported Builds', color: DefaultPalette.magentaLight }],
+    lineData: [{ y: 33, legend: 'Supported Builds', color: '#e3008c' }],
   },
 ];
 
 const simpleChartPoints: IVSChartDataPoint[] = [
-  { legend: 'Metadata1', data: 2, color: DefaultPalette.blue },
-  { legend: 'Metadata2', data: 0.5, color: DefaultPalette.blueMid },
+  { legend: 'Metadata1', data: 2, color: '#0078d4' },
+  { legend: 'Metadata2', data: 0.5, color: '#00188f' },
 ];
 
 const simplePointsWithoutLine = [
@@ -301,8 +300,8 @@ describe('Vertical stacked bar chart - Subcomponent bar', () => {
     container => {
       const bars = screen.getAllByText((content, element) => element!.tagName.toLowerCase() === 'rect');
       // Assert
-      expect(bars[0].getAttribute('fill')).toEqual(DefaultPalette.blue);
-      expect(bars[1].getAttribute('fill')).toEqual(DefaultPalette.blueMid);
+      expect(bars[0].getAttribute('fill')).toEqual('#0078d4');
+      expect(bars[1].getAttribute('fill')).toEqual('#00188f');
     },
   );
 

@@ -5,7 +5,6 @@ export {
   ColorClassNames,
   DefaultEffects,
   DefaultFontStyles,
-  DefaultPalette,
   // eslint-disable-next-line deprecation/deprecation
   EdgeChromiumHighContrastSelector,
   FontClassNames,
@@ -36,7 +35,6 @@ export {
   concatStyleSets,
   concatStyleSetsWithProps,
   createFontStyles,
-  createTheme,
   focusClear,
   fontFace,
   // eslint-disable-next-line deprecation/deprecation
@@ -44,7 +42,6 @@ export {
   getFadedOverflowStyle,
   getFocusOutlineStyle,
   // eslint-disable-next-line deprecation/deprecation
-  getFocusStyle,
   getGlobalClassNames,
   getHighContrastNoAdjustStyle,
   getIcon,

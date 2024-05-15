@@ -1,6 +1,5 @@
 import { screen, fireEvent } from '@testing-library/react';
 import { DarkTheme } from '@fluentui/theme-samples';
-import { DefaultPalette } from '@fluentui/react/lib/Styling';
 import { IVSChartDataPoint } from '../src/index';
 import { VerticalStackedBarChart } from '../src/components/VerticalStackedBarChart/VerticalStackedBarChart';
 import { testWithWait, testWithoutWait } from '../src/utilities/TestUtility.test';
@@ -11,15 +10,15 @@ const env = require('../config/tests');
 const runTest = env === 'TEST' ? describe : describe.skip;
 
 const firstChartPoints: IVSChartDataPoint[] = [
-  { legend: 'Metadata1', data: 2, color: DefaultPalette.blue },
-  { legend: 'Metadata2', data: 0.5, color: DefaultPalette.blueMid },
-  { legend: 'Metadata3', data: 0, color: DefaultPalette.blueLight },
+  { legend: 'Metadata1', data: 2, color: '#0078d4' },
+  { legend: 'Metadata2', data: 0.5, color: '#00188f' },
+  { legend: 'Metadata3', data: 0, color: '#00bcf2' },
 ];
 
 const secondChartPoints: IVSChartDataPoint[] = [
-  { legend: 'Metadata1', data: 30, color: DefaultPalette.blue },
-  { legend: 'Metadata2', data: 3, color: DefaultPalette.blueMid },
-  { legend: 'Metadata3', data: 40, color: DefaultPalette.blueLight },
+  { legend: 'Metadata1', data: 30, color: '#0078d4' },
+  { legend: 'Metadata2', data: 3, color: '#00188f' },
+  { legend: 'Metadata3', data: 40, color: '#00bcf2' },
 ];
 
 const simplePointsWithLine = [
@@ -27,17 +26,17 @@ const simplePointsWithLine = [
     chartData: firstChartPoints,
     xAxisPoint: 33,
     activeLegend: 'Supported Builds',
-    lineData: [{ y: 42, legend: 'Supported Builds', color: DefaultPalette.magentaLight }],
+    lineData: [{ y: 42, legend: 'Supported Builds', color: '#e3008c' }],
   },
   {
     activeLegend: 'Supported Builds',
     chartData: secondChartPoints,
     xAxisPoint: 55,
-    lineData: [{ y: 33, legend: 'Supported Builds', color: DefaultPalette.magentaLight }],
+    lineData: [{ y: 33, legend: 'Supported Builds', color: '#e3008c' }],
   },
 ];
 
-const singleBar: IVSChartDataPoint[] = [{ legend: 'Metadata1', data: 2.8, color: DefaultPalette.blue }];
+const singleBar: IVSChartDataPoint[] = [{ legend: 'Metadata1', data: 2.8, color: '#0078d4' }];
 
 const chartPointsWithSingleBar = [
   {
@@ -50,12 +49,12 @@ const chartPointsWithoutColor = [
   {
     chartData: firstChartPoints,
     xAxisPoint: 0,
-    lineData: [{ y: 42, legend: 'Supported Builds', color: DefaultPalette.magentaLight }],
+    lineData: [{ y: 42, legend: 'Supported Builds', color: '#e3008c' }],
   },
   {
     chartData: secondChartPoints,
     xAxisPoint: 20,
-    lineData: [{ y: 33, legend: 'Supported Builds', color: DefaultPalette.magentaLight }],
+    lineData: [{ y: 33, legend: 'Supported Builds', color: '#e3008c' }],
   },
 ];
 
@@ -63,12 +62,12 @@ const chartPointsWithStringXAxisPoint = [
   {
     chartData: firstChartPoints,
     xAxisPoint: 'January',
-    lineData: [{ y: 42, legend: 'Supported Builds', color: DefaultPalette.magentaLight }],
+    lineData: [{ y: 42, legend: 'Supported Builds', color: '#e3008c' }],
   },
   {
     chartData: secondChartPoints,
     xAxisPoint: 'February',
-    lineData: [{ y: 41, legend: 'Supported Builds', color: DefaultPalette.magentaLight }],
+    lineData: [{ y: 41, legend: 'Supported Builds', color: '#e3008c' }],
   },
 ];
 

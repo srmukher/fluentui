@@ -9,7 +9,7 @@ import {
   scaleUtc as d3ScaleUtc,
 } from 'd3-scale';
 import { classNamesFunction, getId, getRTL, warnDeprecations, memoizeFunction } from '@fluentui/react/lib/Utilities';
-import { IPalette, IProcessedStyleSet } from '@fluentui/react/lib/Styling';
+import { IProcessedStyleSet } from '@fluentui/react/lib/Styling';
 import { DirectionalHint } from '@fluentui/react/lib/Callout';
 import { ILegend, Legends } from '../Legends/index';
 import {
@@ -163,11 +163,7 @@ export class VerticalStackedBarChartBase extends React.Component<
       const shouldFocusWholeStack = this._toFocusWholeStack(_isHavingLines);
       const { isCalloutForStack = false } = this.props;
       this._dataset = this._createDataSetLayer();
-      const legendBars: JSX.Element = this._getLegendData(
-        this._points,
-        this.props.theme!.palette,
-        this._createLegendsForLine(this.props.data),
-      );
+      const legendBars: JSX.Element = this._getLegendData(this._points, this._createLegendsForLine(this.props.data));
       this._classNames = getClassNames(this.props.styles!, {
         theme: this.props.theme!,
         href: this.props.href!,
@@ -448,10 +444,8 @@ export class VerticalStackedBarChartBase extends React.Component<
   private _adjustProps(): void {
     this._points = this.props.data || [];
     this._barWidth = getBarWidth(this.props.barWidth, this.props.maxBarWidth);
-    const { theme } = this.props;
-    const { palette } = theme!;
     // eslint-disable-next-line deprecation/deprecation
-    this._colors = this.props.colors || [palette.blueLight, palette.blue, palette.blueMid, palette.red, palette.black];
+    this._colors = this.props.colors || ['#00bcf2', '#0078d4', '#00188f', '#e81123', '#000000'];
     this._xAxisType = getTypeOfAxis(this.props.data[0].xAxisPoint, true) as XAxisTypes;
     this._lineObject = this._getFormattedLineData(this.props.data);
     this._xAxisInnerPadding = getScalePadding(this.props.xAxisInnerPadding, this.props.xAxisPadding, 2 / 3);
@@ -526,15 +520,11 @@ export class VerticalStackedBarChartBase extends React.Component<
     });
   }
 
-  private _getLegendData(
-    data: IVerticalStackedChartProps[],
-    palette: IPalette,
-    lineLegends: LineLegends[],
-  ): JSX.Element {
+  private _getLegendData(data: IVerticalStackedChartProps[], lineLegends: LineLegends[]): JSX.Element {
     if (this.props.hideLegend) {
       return <></>;
     }
-    const defaultPalette: string[] = [palette.blueLight, palette.blue, palette.blueMid, palette.red, palette.black];
+    const defaultPalette: string[] = ['#00bcf2', '#0078d4', '#00188f', '#e81123', '#000000'];
     const actions: ILegend[] = [];
     const { allowHoverOnLegend = true } = this.props;
 
