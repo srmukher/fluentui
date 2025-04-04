@@ -43,6 +43,8 @@
     "@fluentui/react-focus": "^8.9.22",
     "@fluentui/theme-samples": "^8.7.203",
     "@microsoft/load-themed-styles": "^1.10.26",
+    "d3": "^6.7.0",
+    "@types/d3": "^6.7.0",
     "@types/d3-array": "^3.0.0",
     "@types/d3-axis": "^3.0.0",
     "@types/d3-format": "^3.0.0",

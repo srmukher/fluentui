@@ -224,7 +224,7 @@ export function createNumericXAxis(
   const tickValues = ((tickParams.tickValues as number[] | undefined) ?? xAxisScale.ticks(tickCount)).map(
     xAxis.tickFormat()!,
   );
-  return { xScale: xAxisScale, tickValues };
+  return { xScale: xAxisScale, tickValues, xAxis };
 }
 
 function multiFormat(date: Date, locale?: d3TimeLocaleObject, useUTC?: boolean) {
@@ -346,7 +346,7 @@ export function createDateXAxis(
   const tickValues = ((tickParams.tickValues as Date[] | undefined) ?? xAxisScale.ticks(tickCount)).map(
     xAxis.tickFormat()!,
   );
-  return { xScale: xAxisScale, tickValues };
+  return { xScale: xAxisScale, tickValues, xAxis };
 }
 
 /**
@@ -417,7 +417,7 @@ export function createStringXAxis(
   if (xAxisParams.xAxisElement) {
     d3Select(xAxisParams.xAxisElement).call(xAxis).selectAll('text').attr('aria-hidden', 'true');
   }
-  return { xScale: xAxisScale, tickValues };
+  return { xScale: xAxisScale, tickValues: dataset, xAxis };
 }
 
 /**
