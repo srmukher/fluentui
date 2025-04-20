@@ -640,12 +640,13 @@ export const GaugeChart: React.FunctionComponent<GaugeChartProps> = React.forwar
             )}
             {arcs.map((arc, index) => {
               const segment = _segments[arc.segmentIndex];
+              const isFocused = focusedElement === segment.legend;
               return (
                 <React.Fragment key={index}>
                   <path
                     d={arc.d}
                     strokeWidth={focusedElement === segment.legend ? ARC_PADDING : 0}
-                    className={classes.segment}
+                    className={isFocused ? classes.focusedSegment : classes.segment}
                     fill={segment.color}
                     opacity={_legendHighlighted(segment.legend) || _noLegendHighlighted() ? 1 : 0.1}
                     {...getAccessibleDataObject(

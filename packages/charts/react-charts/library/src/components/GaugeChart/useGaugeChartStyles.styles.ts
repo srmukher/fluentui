@@ -23,6 +23,7 @@ export const gaugeChartClassNames: SlotClassNames<GaugeChartStyles> = {
   descriptionMessage: 'fui-gc__descriptionMessage',
   calloutInfoContainer: '',
   legendsContainer: '',
+  focusedSegment: 'fui-gc__focusedSegment',
 };
 
 const useStyles = makeStyles({
@@ -109,6 +110,10 @@ const useStyles = makeStyles({
     paddingTop: '10px',
     borderTop: `1px solid ${tokens.colorNeutralStroke1}`,
   },
+  focusedSegment: {
+    outline: '2px solid',
+    stroke: tokens.colorNeutralStroke1,
+  },
 });
 export const useGaugeChartStyles = (props: GaugeChartProps): GaugeChartStyles => {
   const baseStyles = useStyles();
@@ -134,5 +139,6 @@ export const useGaugeChartStyles = (props: GaugeChartProps): GaugeChartStyles =>
     calloutlegendText: mergeClasses(gaugeChartClassNames.calloutlegendText, baseStyles.calloutlegendText),
     calloutContentY: mergeClasses(gaugeChartClassNames.calloutContentY, baseStyles.calloutContentY),
     descriptionMessage: mergeClasses(gaugeChartClassNames.descriptionMessage, baseStyles.descriptionMessage),
+    focusedSegment: mergeClasses(gaugeChartClassNames.focusedSegment, baseStyles.focusedSegment),
   };
 };
