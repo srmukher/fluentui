@@ -646,6 +646,8 @@ export interface IVSChartDataPoint {
    * Accessibility data for callout
    */
   callOutAccessibilityData?: IAccessibilityProps;
+
+  pattern?: string;
 }
 
 /**

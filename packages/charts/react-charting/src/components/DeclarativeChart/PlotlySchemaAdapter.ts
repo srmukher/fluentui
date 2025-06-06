@@ -394,12 +394,14 @@ export const transformPlotlyJsonToVSBCProps = (
                 : 0,
             )
           : resolveColor(extractedBarColors, index2, legend, colorMap, isDarkTheme);
+        const pattern = series.marker?.pattern?.shape ?? undefined;
         const yVal: number = rangeYValues[index2] as number;
         if (series.type === 'bar') {
           mapXToDataPoints[x].chartData.push({
             legend,
             data: yVal,
             color,
+            pattern,
           });
           if (typeof yVal === 'number') {
             yMaxValue = Math.max(yMaxValue, yVal);

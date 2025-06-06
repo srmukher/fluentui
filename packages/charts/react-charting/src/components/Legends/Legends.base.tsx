@@ -154,6 +154,7 @@ export class LegendsBase extends React.Component<ILegendsProps, ILegendState> im
         color: legend.color,
         shape: shape ? shape : legend.shape,
         stripePattern: legend.stripePattern,
+        pattern: legend.pattern,
         isLineLegendInBarChart: legend.isLineLegendInBarChart,
         opacity: legend.opacity,
         key: index,
@@ -375,6 +376,7 @@ export class LegendsBase extends React.Component<ILegendsProps, ILegendState> im
       hoverAction: data.hoverAction,
       onMouseOutAction: data.onMouseOutAction,
       stripePattern: data.stripePattern,
+      pattern: data.pattern,
       isLineLegendInBarChart: data.isLineLegendInBarChart,
       opacity: data.opacity,
     };
@@ -387,6 +389,7 @@ export class LegendsBase extends React.Component<ILegendsProps, ILegendState> im
       borderColor: legend.color,
       overflow,
       stripePattern: legend.stripePattern,
+      pattern: legend.pattern,
       isLineLegendInBarChart: legend.isLineLegendInBarChart,
       opacity: legend.opacity,
     });

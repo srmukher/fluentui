@@ -654,14 +654,17 @@ export class VerticalStackedBarChartBase
           color = point.gradient?.[0] || getNextGradient(pointIndex, 0, theme?.isInverted)[0];
         }
 
-        const checkSimilarLegends = actions.filter((leg: ILegend) => leg.title === point.legend && leg.color === color);
-        if (checkSimilarLegends!.length > 0) {
+        const checkSimilarLegends = actions.filter(
+          (leg: ILegend) => leg.title === point.legend && leg.color === color && leg.pattern === point.pattern,
+        );
+        if (checkSimilarLegends.length > 0) {
           return;
         }
 
         const legend: ILegend = {
           title: point.legend,
           color,
+          pattern: point.pattern,
           hoverAction: allowHoverOnLegend
             ? () => {
                 this._handleChartMouseLeave();
@@ -932,6 +935,77 @@ export class VerticalStackedBarChartBase
     xElement: SVGElement,
   ): JSX.Element[] => {
     const { barCornerRadius = 0, barMinimumHeight = 0 } = this.props;
+    const uniquePatterns = new Set<string>();
+    this._points.forEach(barGroup => barGroup.chartData.forEach(bar => bar.pattern && uniquePatterns.add(bar.pattern)));
+    const patternDefs = (
+      <defs>
+        {Array.from(uniquePatterns).map(shape => {
+          switch (shape) {
+            case '/':
+              return (
+                <pattern
+                  id="pattern-slash"
+                  patternUnits="userSpaceOnUse"
+                  width="8"
+                  height="8"
+                  patternTransform="rotate(45)"
+                >
+                  <rect width="1" height="8" fill="rgba(255,255,255,0.5)" />
+                  <rect x="1" width="8" height="8" fill="transparent" />
+                </pattern>
+              );
+            case '\\':
+              return (
+                <pattern
+                  id="pattern-backslash"
+                  patternUnits="userSpaceOnUse"
+                  width="8"
+                  height="8"
+                  patternTransform="rotate(-45)"
+                >
+                  <rect width="1" height="8" fill="rgba(255,255,255,0.5)" />
+                  <rect x="1" width="8" height="8" fill="transparent" />
+                </pattern>
+              );
+            case '-':
+              return (
+                <pattern id="pattern-horizontal-lines" patternUnits="userSpaceOnUse" width="8" height="8">
+                  <rect width="8" height="1" fill="rgba(255,255,255,0.5)" />
+                  <rect y="1" width="8" height="1" fill="transparent" />
+                </pattern>
+              );
+            case 'x':
+              return (
+                <pattern id="pattern-x" patternUnits="userSpaceOnUse" width="8" height="8">
+                  <path d="M0,0L8,8M8,0L0,8" stroke="rgba(255,255,255,0.5)" strokeWidth="1" />
+                </pattern>
+              );
+            case '.':
+              return (
+                <pattern id="pattern-dot" patternUnits="userSpaceOnUse" width="6" height="6">
+                  <circle cx="3" cy="3" r="1" fill="rgba(255,255,255,0.5)" />
+                </pattern>
+              );
+            case '+':
+              return (
+                <pattern id="pattern-plus" patternUnits="userSpaceOnUse" width="8" height="8">
+                  <path d="M4,0 L4,8 M0,4 L8,4" stroke="rgba(255,255,255,0.5)" strokeWidth="1" />
+                </pattern>
+              );
+            case '|':
+              return (
+                <pattern id="pattern-vertical-lines" patternUnits="userSpaceOnUse" width="8" height="8">
+                  <rect width="1" height="8" fill="rgba(255,255,255,0.5)" />
+                  <rect x="1" width="7" height="8" fill="transparent" />
+                </pattern>
+              );
+            default:
+              return null;
+          }
+        })}
+      </defs>
+    );
+
     const _isHavingLines = this.props.data.some(
       (item: IVerticalStackedChartProps) => item.lineData && item.lineData.length > 0,
     );
@@ -1018,6 +1092,33 @@ export class VerticalStackedBarChartBase
           };
 
         let barHeight: number;
+        let barFill = startColor;
+        if (point.pattern) {
+          switch (point.pattern) {
+            case '/':
+              barFill = 'url(#pattern-slash)';
+              break;
+            case '\\':
+              barFill = 'url(#pattern-backslash)';
+              break;
+            case '-':
+              barFill = 'url(#pattern-horizontal-lines)';
+              break;
+            case 'x':
+              barFill = 'url(#pattern-x)';
+              break;
+            case '.':
+              barFill = 'url(#pattern-dot)';
+              break;
+            case '+':
+              barFill = 'url(#pattern-plus)';
+              break;
+            case '|':
+              barFill = 'url(#pattern-vertical-lines)';
+              break;
+          }
+        }
+
         const gapOffset = index ? gapHeight : 0;
         if (this._yAxisType === YAxisType.StringAxis) {
           barHeight = Math.max(
@@ -1095,6 +1196,7 @@ export class VerticalStackedBarChartBase
                 </linearGradient>
               </defs>
             )}
+            {patternDefs}
             <rect
               className={this._classNames.opacityChangeOnHover}
               x={xPoint}
@@ -1107,6 +1209,19 @@ export class VerticalStackedBarChartBase
               {...rectFocusProps}
               transform={`translate(${xScaleBandwidthTranslate}, 0)`}
             />
+            {point.pattern && (
+              <rect
+                className={this._classNames.opacityChangeOnHover}
+                x={xPoint}
+                y={yPoint}
+                width={this._barWidth}
+                height={barHeight}
+                fill={barFill} // pattern fill
+                rx={this.props.roundCorners ? 3 : 0}
+                transform={`translate(${xScaleBandwidthTranslate}, 0)`}
+                pointerEvents="none" // pattern overlay should not capture mouse events
+              />
+            )}
           </React.Fragment>
         );
       });

@@ -132,6 +132,8 @@ export interface ILegend {
    *  native button props for the legend button
    */
   nativeButtonProps?: React.ButtonHTMLAttributes<HTMLButtonElement>;
+
+  pattern?: string;
 }
 
 /**
@@ -148,6 +150,7 @@ export interface ILegendStyleProps {
   overflow?: boolean;
   stripePattern?: boolean;
   isLineLegendInBarChart?: boolean;
+  pattern?: string;
 }
 
 /**
@@ -165,6 +168,8 @@ export interface ILegendsProps {
    * Additional CSS class(es) to apply to the legneds component.
    */
   className?: string;
+
+  pattern?: string;
 
   /**
    * Theme (provided through customization.)
@@ -284,6 +289,8 @@ export interface ILegendsProps {
    * Callback to access the public methods and properties of the component.
    */
   ref?: IRefObject<ILegendContainer>;
+
+  onRenderLegend?: (legend: ILegend, index: number) => React.ReactNode;
 }
 
 /**

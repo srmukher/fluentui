@@ -58,14 +58,35 @@ export const getStyles = (props: ILegendStyleProps): ILegendsStyles => {
       },
       width: `${LEGEND_SHAPE_SIZE_WITHOUT_BORDER}px`,
       height: isLineLegendInBarChart ? '4px' : `${LEGEND_SHAPE_SIZE_WITHOUT_BORDER}px`,
-      backgroundColor: props.stripePattern ? '' : props.colorOnSelectedState,
+      backgroundColor: props.pattern ? '' : props.colorOnSelectedState,
       marginRight: `${LEGEND_SHAPE_MARGIN_END}px`,
       border: `${LEGEND_SHAPE_BORDER}px solid`,
       borderColor: props.borderColor ? props.borderColor : theme?.semanticColors.buttonBorder,
-      content: props.stripePattern
-        ? // eslint-disable-next-line @fluentui/max-len
-          `repeating-linear-gradient(135deg, transparent, transparent 3px, ${props.colorOnSelectedState} 1px, ${props.colorOnSelectedState} 4px)`
-        : '',
+      backgroundImage:
+        props.pattern === '/'
+          ? `repeating-linear-gradient(135deg, transparent, transparent 3px, ${props.colorOnSelectedState} 1px,
+          ${props.colorOnSelectedState} 4px)`
+          : props.pattern === '\\'
+          ? `repeating-linear-gradient(-135deg, transparent, transparent 3px, ${props.colorOnSelectedState} 1px,
+          ${props.colorOnSelectedState} 4px)`
+          : props.pattern === '-'
+          ? `repeating-linear-gradient(0deg, transparent, transparent 3px, ${props.colorOnSelectedState} 1px,
+          ${props.colorOnSelectedState} 4px)`
+          : props.pattern === '|'
+          ? `repeating-linear-gradient(90deg, transparent, transparent 3px, ${props.colorOnSelectedState} 1px,
+          ${props.colorOnSelectedState} 4px)`
+          : props.pattern === '.'
+          ? `radial-gradient(circle at 3px 3px, ${props.colorOnSelectedState} 1.5px, transparent 1.5px),
+          radial-gradient(circle at 9px 9px, ${props.colorOnSelectedState} 1.5px, transparent 1.5px)`
+          : props.pattern === '+'
+          ? `repeating-linear-gradient(0deg, transparent, transparent 3px, ${props.colorOnSelectedState} 1px,
+          ${props.colorOnSelectedState} 4px), repeating-linear-gradient(90deg, transparent, transparent 3px,
+          ${props.colorOnSelectedState} 1px, ${props.colorOnSelectedState} 4px)`
+          : props.pattern === 'x'
+          ? `repeating-linear-gradient(135deg, transparent, transparent 3px, ${props.colorOnSelectedState} 1px,
+          ${props.colorOnSelectedState} 4px), repeating-linear-gradient(-135deg, transparent, transparent 3px,
+          ${props.colorOnSelectedState} 1px, ${props.colorOnSelectedState} 4px)`
+          : '',
     },
     shape: [
       {
