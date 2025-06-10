@@ -10,6 +10,7 @@ import {
   DataVizGradientPalette,
 } from '@fluentui/react-charting';
 import { Toggle } from '@fluentui/react/lib/Toggle';
+import { Sunburst } from '@fluentui/react-charting/lib/components/DonutChart/Sunburst';
 
 interface IDonutChartState {
   enableGradient: boolean;
@@ -106,6 +107,18 @@ export class DonutChartBasicExample extends React.Component<IDonutChartProps, ID
       chartData: points,
     };
 
+    const sunburstData = {
+      branchvalues: 'total',
+      domain: {
+        x: [0.0, 1.0],
+        y: [0.0, 1.0],
+      },
+      ids: ['A/A1', 'A/A2', 'B/B1', 'B/B2', 'C/C1', 'C/C2', 'C/C3', 'A', 'B', 'C'],
+      labels: ['A1', 'A2', 'B1', 'B2', 'C1', 'C2', 'C3', 'A', 'B', 'C'],
+      parents: ['A', 'A', 'B', 'B', 'C', 'C', 'C', '', '', ''],
+      values: [10, 20, 15, 25, 5, 10, 15, 30, 40, 30],
+    };
+
     return (
       <>
         <div style={{ display: 'flex' }}>
@@ -134,20 +147,7 @@ export class DonutChartBasicExample extends React.Component<IDonutChartProps, ID
           />
         </div>
 
-        <DonutChart
-          culture={window.navigator.language}
-          data={data}
-          innerRadius={55}
-          href={'https://developer.microsoft.com/en-us/'}
-          legendsOverflowText={'overflow Items'}
-          hideLegend={false}
-          valueInsideDonut={39000}
-          enableGradient={this.state.enableGradient}
-          roundCorners={this.state.roundCorners}
-          legendProps={{
-            canSelectMultipleLegends: this.state.legendMultiSelect,
-          }}
-        />
+        <Sunburst data={sunburstData} />
       </>
     );
   }

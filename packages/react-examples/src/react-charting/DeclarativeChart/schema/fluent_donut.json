@@ -1,76 +1,44 @@
 {
-  "visualizer": "plotly",
   "data": [
     {
-      "hole": 0.6,
-      "type": "pie",
-      "frame": null,
+      "type": "scatter",
+      "x": [2000000, 1500000, 1750000, 1000000, 2200000, 1300000, 1800000, 1100000, 2450000, 1600000],
+      "y": [85, 75, 80, 70, 90, 78, 85, 72, 95, 82],
+      "mode": "markers",
       "marker": {
-        "line": {
-          "color": "transparent"
-        },
-        "colors": [
-          "rgba(31,119,180,1)",
-          "rgba(255,127,14,1)",
-          "rgba(44,160,44,1)",
-          "rgba(214,39,40,1)",
-          "rgba(148,103,189,1)",
-          "rgba(140,86,75,1)",
-          "rgba(227,119,194,1)",
-          "rgba(127,127,127,1)",
-          "rgba(188,189,34,1)",
-          "rgba(23,190,207,1)"
-        ],
-        "fillcolor": "rgba(31,119,180,1)"
+        "size": [20, 15, 17, 10, 22, 13, 18, 11, 24, 16],
+        "color": [85, 75, 80, 70, 90, 78, 85, 72, 95, 82],
+        "colorscale": "Viridis",
+        "colorbar": {
+          "title": "Satisfaction Score"
+        }
       },
-      "labels": [
-        "AMC",
-        "Cadillac",
-        "Camaro",
-        "Chrysler",
-        "Datsun",
-        "Dodge",
-        "Duster",
-        "Ferrari",
-        "Fiat",
-        "Ford",
-        "Honda",
-        "Hornet",
-        "Lincoln",
-        "Lotus",
-        "Maserati",
-        "Mazda",
-        "Merc",
-        "Pontiac",
-        "Porsche",
-        "Toyota",
-        "Valiant",
-        "Volvo"
-      ],
-      "values": [1, 1, 1, 1, 1, 1, 1, 1, 2, 1, 1, 2, 1, 1, 1, 2, 7, 1, 1, 2, 1, 1]
+      "text": [
+        "Hospital A",
+        "Hospital B",
+        "Hospital C",
+        "Hospital D",
+        "Hospital E",
+        "Hospital F",
+        "Hospital G",
+        "Hospital H",
+        "Hospital I",
+        "Hospital J"
+      ]
     }
   ],
   "layout": {
-    "title": "Donut charts using Plotly",
+    "title": {
+      "text": "Healthcare Spending vs Patient Satisfaction"
+    },
     "xaxis": {
-      "showgrid": false,
-      "zeroline": false,
-      "showticklabels": false
+      "title": "Healthcare Spending (USD)"
     },
     "yaxis": {
-      "showgrid": false,
-      "zeroline": false,
-      "showticklabels": false
+      "title": "Patient Satisfaction Score"
     },
-    "margin": {
-      "b": 40,
-      "l": 60,
-      "r": 10,
-      "t": 25
-    },
-    "hovermode": "closest",
-    "showlegend": true
+    "height": 600,
+    "width": 800
   },
-  "frames": [],
-  "selectedLegends": ["Cadillac"]
+  "id": 196
 }

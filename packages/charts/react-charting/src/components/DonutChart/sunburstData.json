@@ -1,0 +1,70 @@
+{
+  "data": [
+    {
+      "type": "sunburst",
+      "ids": ["A", "B", "C", "A/A1", "A/A2", "B/B1", "B/B2", "C/C1", "C/C2", "C/C3"],
+      "labels": ["A", "B", "C", "A1", "A2", "B1", "B2", "C1", "C2", "C3"],
+      "parents": ["", "", "", "A", "A", "B", "B", "C", "C", "C"],
+      "values": [30, 40, 30, 10, 20, 15, 25, 5, 10, 15],
+      "branchvalues": "total",
+      "marker": {
+        "colors": [
+          "#4F6BED",
+          "#C19C00",
+          "#038387",
+          "#4F6BED",
+          "#4F6BED",
+          "#C19C00",
+          "#C19C00",
+          "#038387",
+          "#038387",
+          "#038387"
+        ],
+        "line": {
+          "color": "white",
+          "width": 2
+        }
+      },
+      "textinfo": "label+value",
+      "textfont": {
+        "size": 12,
+        "color": "white"
+      },
+      "hovertemplate": "<b>%{label}</b><br>Value: %{value}<br>Percentage: %{percentParent}<extra></extra>",
+      "maxdepth": 3,
+      "leaf": {
+        "opacity": 0.8
+      }
+    }
+  ],
+  "layout": {
+    "title": {
+      "text": "Sunburst Chart",
+      "font": {
+        "size": 16,
+        "family": "Arial, sans-serif"
+      }
+    },
+    "font": {
+      "size": 12,
+      "family": "Arial, sans-serif"
+    },
+    "margin": {
+      "t": 50,
+      "l": 50,
+      "r": 50,
+      "b": 50
+    },
+    "width": 400,
+    "height": 400,
+    "showlegend": false,
+    "paper_bgcolor": "white",
+    "plot_bgcolor": "white"
+  },
+  "config": {
+    "displayModeBar": true,
+    "displaylogo": false,
+    "modeBarButtonsToRemove": ["pan2d", "lasso2d", "select2d"],
+    "responsive": true
+  }
+}
