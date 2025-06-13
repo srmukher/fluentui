@@ -94,6 +94,12 @@ export interface ILineChartProps extends ICartesianChartProps {
    * @deprecated this prop no longer used to identify scatter mode
    */
   lineMode?: 'default' | 'scatter';
+
+  /**
+   * Enable gradient fill for lines
+   * @default false
+   */
+  enableGradient?: boolean;
 }
 
 /**

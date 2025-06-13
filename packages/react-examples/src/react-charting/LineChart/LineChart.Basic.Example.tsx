@@ -63,11 +63,39 @@ export class LineChartBasicExample extends React.Component<{}, ILineChartBasicSt
   };
 
   private _basicExample(): JSX.Element {
+    const gradientData = {
+      lineChartData: [
+        {
+          legend: 'Revenue',
+          data: [
+            { x: 1, y: 10 },
+            { x: 2, y: 20 },
+            { x: 3, y: 15 },
+            { x: 4, y: 25 },
+            { x: 5, y: 30 },
+          ],
+          // Custom gradient: [startColor, endColor]
+          gradient: ['#ff0000', '#00ff00'], // Red to Green
+        },
+        {
+          legend: 'Profit',
+          data: [
+            { x: 1, y: 5 },
+            { x: 2, y: 15 },
+            { x: 3, y: 10 },
+            { x: 4, y: 20 },
+            { x: 5, y: 25 },
+          ],
+          gradient: ['#0066cc', '#9933cc'], // Blue to Purple
+        },
+      ],
+    };
     const data: IChartProps = {
       chartTitle: 'Line Chart',
       lineChartData: [
         {
           legend: 'From_Legacy_to_O365',
+          gradient: ['#ff0000', '#00ff00'],
           data: [
             {
               x: new Date('2020-03-03T00:00:00.000Z'),
@@ -123,6 +151,7 @@ export class LineChartBasicExample extends React.Component<{}, ILineChartBasicSt
         },
         {
           legend: 'All',
+          gradient: ['#ff0000', '#00ff00'],
           data: [
             {
               x: new Date('2020-03-03T00:00:00.000Z'),
@@ -160,6 +189,7 @@ export class LineChartBasicExample extends React.Component<{}, ILineChartBasicSt
         },
         {
           legend: 'single point',
+          gradient: ['#ff0000', '#00ff00'],
           data: [
             {
               x: new Date('2020-03-05T12:00:00.000Z'),
@@ -222,6 +252,7 @@ export class LineChartBasicExample extends React.Component<{}, ILineChartBasicSt
             key={`${this.state.showAxisTitles}`}
             culture={window.navigator.language}
             data={data}
+            enableGradient={true}
             legendsOverflowText={'Overflow Items'}
             yMinValue={200}
             yMaxValue={301}

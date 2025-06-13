@@ -52,6 +52,7 @@ import {
   areArraysEqual,
   getCurveFactory,
   YAxisType,
+  getNextGradient,
 } from '../../utilities/index';
 import { IChart, IImageExportOptions } from '../../types/index';
 import { toImage } from '../../utilities/image-export-utils';
@@ -814,6 +815,14 @@ export class LineChartBase extends React.Component<ILineChartProps, ILineChartSt
         const isLegendSelected: boolean =
           this._legendHighlighted(legendVal) || this._noLegendHighlighted() || this.state.isSelectedLegend;
 
+        // Calculate gradient colors if enabled
+        let startColor = lineColor;
+        let endColor = lineColor;
+        if (this.props.enableGradient) {
+          startColor = this._points[i].gradient?.[0] || getNextGradient(i, 0, this.props.theme?.isInverted)[0];
+          endColor = this._points[i].gradient?.[1] || getNextGradient(i, 0, this.props.theme?.isInverted)[1];
+        }
+
         const lineData: [number, number][] = [];
         for (let k = 0; k < this._points[i].data.length; k++) {
           lineData.push([
@@ -843,24 +852,56 @@ export class LineChartBase extends React.Component<ILineChartProps, ILineChartSt
             );
           }
 
-          linesForLine.push(
-            <path
-              id={lineId}
-              key={lineId}
-              d={line(lineData)!}
-              fill="transparent"
-              data-is-focusable={true}
-              stroke={lineColor}
-              strokeWidth={strokeWidth}
-              strokeLinecap={this._points[i].lineOptions?.strokeLinecap ?? 'round'}
-              strokeDasharray={this._points[i].lineOptions?.strokeDasharray}
-              onMouseMove={this._onMouseOverLargeDataset.bind(this, i, verticaLineHeight, yScale)}
-              onMouseOver={this._onMouseOverLargeDataset.bind(this, i, verticaLineHeight, yScale)}
-              onMouseOut={this._handleMouseOut}
-              {...this._getClickHandler(this._points[i].onLineClick)}
-              opacity={1}
-            />,
-          );
+          // Add gradient definition if enabled
+          if (this.props.enableGradient) {
+            const gradientId = `${this._lineId}_gradient_${i}`;
+            bordersForLine.push(
+              <defs key={`defs_${gradientId}`}>
+                <linearGradient id={gradientId} x1="0%" y1="0%" x2="100%" y2="0%">
+                  <stop offset="0%" stopColor={startColor} />
+                  <stop offset="100%" stopColor={endColor} />
+                </linearGradient>
+              </defs>,
+            );
+
+            linesForLine.push(
+              <path
+                id={lineId}
+                key={lineId}
+                d={line(lineData)!}
+                fill="transparent"
+                data-is-focusable={true}
+                stroke={`url(#${gradientId})`}
+                strokeWidth={strokeWidth}
+                strokeLinecap={this._points[i].lineOptions?.strokeLinecap ?? 'round'}
+                strokeDasharray={this._points[i].lineOptions?.strokeDasharray}
+                onMouseMove={this._onMouseOverLargeDataset.bind(this, i, verticaLineHeight, yScale)}
+                onMouseOver={this._onMouseOverLargeDataset.bind(this, i, verticaLineHeight, yScale)}
+                onMouseOut={this._handleMouseOut}
+                {...this._getClickHandler(this._points[i].onLineClick)}
+                opacity={1}
+              />,
+            );
+          } else {
+            linesForLine.push(
+              <path
+                id={lineId}
+                key={lineId}
+                d={line(lineData)!}
+                fill="transparent"
+                data-is-focusable={true}
+                stroke={lineColor}
+                strokeWidth={strokeWidth}
+                strokeLinecap={this._points[i].lineOptions?.strokeLinecap ?? 'round'}
+                strokeDasharray={this._points[i].lineOptions?.strokeDasharray}
+                onMouseMove={this._onMouseOverLargeDataset.bind(this, i, verticaLineHeight, yScale)}
+                onMouseOver={this._onMouseOverLargeDataset.bind(this, i, verticaLineHeight, yScale)}
+                onMouseOut={this._handleMouseOut}
+                {...this._getClickHandler(this._points[i].onLineClick)}
+                opacity={1}
+              />,
+            );
+          }
         } else {
           linesForLine.push(
             <path
@@ -1175,6 +1216,14 @@ export class LineChartBase extends React.Component<ILineChartProps, ILineChartSt
             if (isLegendSelected) {
               // don't draw line if it is in a gap
               if (!isInGap) {
+                // Calculate gradient colors if enabled
+                let startColor = lineColor;
+                let endColor = lineColor;
+                if (this.props.enableGradient) {
+                  startColor = this._points[i].gradient?.[0] || getNextGradient(i, 0, this.props.theme?.isInverted)[0];
+                  endColor = this._points[i].gradient?.[1] || getNextGradient(i, 0, this.props.theme?.isInverted)[1];
+                }
+
                 const lineBorderWidth = this._points[i].lineOptions?.lineBorderWidth
                   ? Number.parseFloat(this._points[i].lineOptions!.lineBorderWidth!.toString())
                   : 0;
@@ -1195,47 +1244,102 @@ export class LineChartBase extends React.Component<ILineChartProps, ILineChartSt
                   );
                 }
 
-                linesForLine.push(
-                  <line
-                    id={lineId}
-                    key={lineId}
-                    x1={this._xAxisScale(x1)}
-                    y1={yScale(y1)}
-                    x2={this._xAxisScale(x2)}
-                    y2={yScale(y2)}
-                    strokeWidth={strokeWidth}
-                    ref={(e: SVGLineElement | null) => {
-                      this._refCallback(e!, lineId);
-                    }}
-                    onMouseOver={this._handleHover.bind(
-                      this,
-                      x1,
-                      y1,
-                      verticaLineHeight,
-                      xAxisCalloutData,
-                      circleId,
-                      xAxisCalloutAccessibilityData,
-                      yScale,
-                    )}
-                    onMouseMove={this._handleHover.bind(
-                      this,
-                      x1,
-                      y1,
-                      verticaLineHeight,
-                      xAxisCalloutData,
-                      circleId,
-                      xAxisCalloutAccessibilityData,
-                      yScale,
-                    )}
-                    onMouseOut={this._handleMouseOut}
-                    stroke={lineColor}
-                    strokeLinecap={this._points[i].lineOptions?.strokeLinecap ?? 'round'}
-                    strokeDasharray={this._points[i].lineOptions?.strokeDasharray}
-                    strokeDashoffset={this._points[i].lineOptions?.strokeDashoffset}
-                    opacity={1}
-                    {...this._getClickHandler(this._points[i].onLineClick)}
-                  />,
-                );
+                // Add gradient definition if enabled
+                if (this.props.enableGradient) {
+                  const gradientId = `${this._lineId}_gradient_${i}_${j}`;
+                  bordersForLine.push(
+                    <defs key={`defs_${gradientId}`}>
+                      <linearGradient id={gradientId} x1="0%" y1="0%" x2="100%" y2="0%">
+                        <stop offset="0%" stopColor={startColor} />
+                        <stop offset="100%" stopColor={endColor} />
+                      </linearGradient>
+                    </defs>,
+                  );
+
+                  linesForLine.push(
+                    <line
+                      id={lineId}
+                      key={lineId}
+                      x1={this._xAxisScale(x1)}
+                      y1={yScale(y1)}
+                      x2={this._xAxisScale(x2)}
+                      y2={yScale(y2)}
+                      strokeWidth={strokeWidth}
+                      ref={(e: SVGLineElement | null) => {
+                        this._refCallback(e!, lineId);
+                      }}
+                      onMouseOver={this._handleHover.bind(
+                        this,
+                        x1,
+                        y1,
+                        verticaLineHeight,
+                        xAxisCalloutData,
+                        circleId,
+                        xAxisCalloutAccessibilityData,
+                        yScale,
+                      )}
+                      onMouseMove={this._handleHover.bind(
+                        this,
+                        x1,
+                        y1,
+                        verticaLineHeight,
+                        xAxisCalloutData,
+                        circleId,
+                        xAxisCalloutAccessibilityData,
+                        yScale,
+                      )}
+                      onMouseOut={this._handleMouseOut}
+                      stroke={`url(#${gradientId})`}
+                      strokeLinecap={this._points[i].lineOptions?.strokeLinecap ?? 'round'}
+                      strokeDasharray={this._points[i].lineOptions?.strokeDasharray}
+                      strokeDashoffset={this._points[i].lineOptions?.strokeDashoffset}
+                      opacity={1}
+                      {...this._getClickHandler(this._points[i].onLineClick)}
+                    />,
+                  );
+                } else {
+                  linesForLine.push(
+                    <line
+                      id={lineId}
+                      key={lineId}
+                      x1={this._xAxisScale(x1)}
+                      y1={yScale(y1)}
+                      x2={this._xAxisScale(x2)}
+                      y2={yScale(y2)}
+                      strokeWidth={strokeWidth}
+                      ref={(e: SVGLineElement | null) => {
+                        this._refCallback(e!, lineId);
+                      }}
+                      onMouseOver={this._handleHover.bind(
+                        this,
+                        x1,
+                        y1,
+                        verticaLineHeight,
+                        xAxisCalloutData,
+                        circleId,
+                        xAxisCalloutAccessibilityData,
+                        yScale,
+                      )}
+                      onMouseMove={this._handleHover.bind(
+                        this,
+                        x1,
+                        y1,
+                        verticaLineHeight,
+                        xAxisCalloutData,
+                        circleId,
+                        xAxisCalloutAccessibilityData,
+                        yScale,
+                      )}
+                      onMouseOut={this._handleMouseOut}
+                      stroke={lineColor}
+                      strokeLinecap={this._points[i].lineOptions?.strokeLinecap ?? 'round'}
+                      strokeDasharray={this._points[i].lineOptions?.strokeDasharray}
+                      strokeDashoffset={this._points[i].lineOptions?.strokeDashoffset}
+                      opacity={1}
+                      {...this._getClickHandler(this._points[i].onLineClick)}
+                    />,
+                  );
+                }
               }
             } else {
               if (!isInGap) {
