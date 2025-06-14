@@ -1,7 +1,6 @@
 import * as React from 'react';
 import { max as d3Max, min as d3Min } from 'd3-array';
 import { Axis as D3Axis } from 'd3-axis';
-import { select as d3Select } from 'd3-selection';
 import { useVerticalStackedBarChartStyles } from './useVerticalStackedBarChartStyles.styles';
 import {
   scaleLinear as d3ScaleLinear,
@@ -11,7 +10,6 @@ import {
   scaleTime as d3ScaleTime,
 } from 'd3-scale';
 import { useId } from '@fluentui/react-utilities';
-import { tokens } from '@fluentui/react-theme';
 import {
   AccessibilityProps,
   CartesianChart,
@@ -24,8 +22,6 @@ import {
   LineDataInVerticalStackedBarChart,
   ModifiedCartesianChartProps,
   Legend,
-  ChartPopover,
-  Legends,
   Chart,
 } from '../../index';
 import {
@@ -47,6 +43,7 @@ import {
   DataVizPalette,
   getColorFromToken,
 } from '../../utilities/index';
+import { lazy } from 'react';
 
 type NumericAxis = D3Axis<number | { valueOf(): number }>;
 type NumericScale = D3ScaleLinear<number, number>;
@@ -64,14 +61,14 @@ type LineLegends = {
   title: string;
   color: string;
 };
-enum CircleVisbility {
-  show = 'visibility',
-  hide = 'hidden',
-}
 type CalloutAnchorPointData = {
   xAxisDataPoint: string;
   chartDataPoint: VSChartDataPoint;
 };
+
+// Lazy-load ChartPopover for tooltips/callouts
+const LazyChartPopover = lazy(() => import('../../index').then(mod => ({ default: mod.ChartPopover })));
+const LazyLineOverlay = lazy(() => import('./VerticalStackedBarChartLineOverlay'));
 
 export const VerticalStackedBarChart: React.FunctionComponent<VerticalStackedBarChartProps> = props => {
   const _isRtl: boolean = useRtl();
@@ -107,7 +104,6 @@ export const VerticalStackedBarChart: React.FunctionComponent<VerticalStackedBar
   const [YValueHover, setYValueHover] = React.useState<(LineDataInVerticalStackedBarChart | VSChartDataPoint)[]>([]);
   const [xCalloutValue, setXCalloutValue] = React.useState('');
   const [yCalloutValue, setYCalloutValue] = React.useState('');
-  const [activeXAxisDataPoint, setActiveXAxisDataPoint] = React.useState<number | string | Date>('');
   const [calloutLegend, setCalloutLegend] = React.useState('');
   const [stackCalloutProps, setStackCalloutProps] = React.useState<VerticalStackedChartProps>();
   const [dataPointCalloutProps, setDataPointCalloutProps] = React.useState<VSChartDataPoint>();
@@ -137,91 +133,8 @@ export const VerticalStackedBarChart: React.FunctionComponent<VerticalStackedBar
     [],
   );
 
-  function _getLegendData(data: VerticalStackedChartProps[], lineLegends: LineLegends[]): JSX.Element {
-    if (props.hideLegend) {
-      return <></>;
-    }
-    const defaultPalette: string[] = [
-      getColorFromToken(DataVizPalette.color6),
-      getColorFromToken(DataVizPalette.color1),
-      getColorFromToken(DataVizPalette.color5),
-      getColorFromToken(DataVizPalette.color7),
-      getColorFromToken(DataVizPalette.color10),
-    ];
-    const actions: Legend[] = [];
-    const { allowHoverOnLegend = true } = props;
-
-    data.forEach((singleChartData: VerticalStackedChartProps) => {
-      singleChartData.chartData.forEach((point: VSChartDataPoint) => {
-        const color: string = point.color ? point.color : defaultPalette[Math.floor(Math.random() * 4 + 1)];
-        const checkSimilarLegends = actions.filter((leg: Legend) => leg.title === point.legend && leg.color === color);
-        if (checkSimilarLegends!.length > 0) {
-          return;
-        }
-
-        const legend: Legend = {
-          title: point.legend,
-          color,
-          hoverAction: allowHoverOnLegend
-            ? () => {
-                _handleChartMouseLeave();
-                _onLegendHover(point.legend);
-              }
-            : undefined,
-          onMouseOutAction: allowHoverOnLegend ? () => _onLegendLeave() : undefined,
-        };
-
-        actions.push(legend);
-      });
-    });
-    const legendsOfLine: Legend[] = [];
-    if (lineLegends && lineLegends.length > 0) {
-      lineLegends.forEach((point: LineLegends) => {
-        const legend: Legend = {
-          title: point.title,
-          color: point.color,
-          isLineLegendInBarChart: true,
-          hoverAction: allowHoverOnLegend
-            ? () => {
-                _handleChartMouseLeave();
-                _onLegendHover(point.title);
-              }
-            : undefined,
-          onMouseOutAction: allowHoverOnLegend ? () => _onLegendLeave() : undefined,
-        };
-        legendsOfLine.push(legend);
-      });
-    }
-    const totalLegends: Legend[] = legendsOfLine.concat(actions);
-    return (
-      <Legends
-        legends={totalLegends}
-        enabledWrapLines={props.enabledLegendsWrapLines}
-        overflowText={props.legendsOverflowText}
-        {...props.legendProps}
-        onChange={_onLegendSelectionChange}
-      />
-    );
-  }
-
   function _getHighlightedLegend() {
     return selectedLegends.length > 0 ? selectedLegends : activeLegend ? [activeLegend] : [];
-  }
-
-  function _lineHoverOut() {
-    setPopoverOpen(false);
-    setXCalloutValue('');
-    setYCalloutValue('');
-    setActiveXAxisDataPoint('');
-    setColor('');
-  }
-
-  function _lineHoverFocus(lineData: LinePoint) {
-    setPopoverOpen(true);
-    setXCalloutValue(`${lineData.xItem.xAxisPoint}`);
-    setYCalloutValue(`${lineData.yAxisCalloutData || lineData.data || lineData.y}`);
-    setActiveXAxisDataPoint(lineData.xItem.xAxisPoint);
-    setColor(lineData.color);
   }
 
   function _onStackHoverFocus(
@@ -263,14 +176,12 @@ export const VerticalStackedBarChart: React.FunctionComponent<VerticalStackedBar
     );
     setHoverXValue(stack.xAxisPoint instanceof Date ? formatDate(stack.xAxisPoint, props.useUTC) : stack.xAxisPoint);
     setStackCalloutProps(stack);
-    setActiveXAxisDataPoint(stack.xAxisPoint);
     setCallOutAccessibilityData(stack.stackCallOutAccessibilityData);
   }
 
   function _handleChartMouseLeave(): void {
     _calloutAnchorPoint = null;
     setPopoverOpen(false);
-    setActiveXAxisDataPoint('');
   }
 
   const _onClick = (
@@ -313,29 +224,6 @@ export const VerticalStackedBarChart: React.FunctionComponent<VerticalStackedBar
     });
     _xAxisLabels = tempArr;
     return dataset;
-  }
-
-  function _onLegendHover(legendTitle: string): void {
-    setActiveLegend(legendTitle);
-  }
-
-  function _onLegendLeave(): void {
-    setActiveLegend(undefined);
-  }
-
-  function _onLegendSelectionChange(
-    _selectedLegends: string[],
-    event: React.MouseEvent<HTMLButtonElement>,
-    currentLegend?: Legend,
-  ): void {
-    if (props.legendProps?.canSelectMultipleLegends) {
-      setSelectedLegends(_selectedLegends);
-    } else {
-      setSelectedLegends(_selectedLegends.slice(-1));
-    }
-    if (props.legendProps?.onChange) {
-      props.legendProps.onChange(_selectedLegends, event, currentLegend);
-    }
   }
 
   function _getMargins(margins: Margins) {
@@ -478,144 +366,21 @@ export const VerticalStackedBarChart: React.FunctionComponent<VerticalStackedBar
     return lineLegends;
   }
 
-  function _createLines(
-    xScale: any,
-    yScale: NumericScale,
-    containerHeight: number,
-    containerWidth: number,
-    secondaryYScale?: NumericScale,
-  ): JSX.Element {
-    const lineObject: LineObject = _getFormattedLineData(props.data);
-    const lines: React.ReactNode[] = [];
-    const borderForLines: React.ReactNode[] = [];
-    const dots: React.ReactNode[] = [];
-    //const { theme } = props;
-    const lineBorderWidth = props.lineOptions?.lineBorderWidth
-      ? Number.parseFloat(props.lineOptions!.lineBorderWidth!.toString())
-      : 0;
-    const xScaleBandwidthTranslate = _xAxisType !== XAxisTypes.StringAxis ? 0 : xScale.bandwidth() / 2;
-    Object.keys(lineObject).forEach((item: string, index: number) => {
-      const shouldHighlight = _isLegendHighlighted(item) || _noLegendHighlighted();
-      for (let i = 1; i < lineObject[item].length; i++) {
-        const x1 = xScale(lineObject[item][i - 1].xItem.xAxisPoint);
-        const useSecondaryYScale =
-          lineObject[item][i - 1].useSecondaryYScale && lineObject[item][i].useSecondaryYScale && secondaryYScale;
-        const y1 = useSecondaryYScale ? secondaryYScale!(lineObject[item][i - 1].y) : yScale(lineObject[item][i - 1].y);
-        const x2 = xScale(lineObject[item][i].xItem.xAxisPoint);
-        const y2 = useSecondaryYScale ? secondaryYScale!(lineObject[item][i].y) : yScale(lineObject[item][i].y);
-        if (lineBorderWidth > 0) {
-          borderForLines.push(
-            <line
-              key={`${index}-${i}-BorderLine`}
-              x1={x1}
-              y1={y1}
-              x2={x2}
-              y2={y2}
-              opacity={shouldHighlight ? 1 : 0.1}
-              strokeWidth={3 + lineBorderWidth * 2}
-              fill="transparent"
-              strokeLinecap="round"
-              stroke={tokens.colorNeutralBackground1}
-              transform={`translate(${xScaleBandwidthTranslate}, 0)`}
-            />,
-          );
-        }
-        lines.push(
-          <line
-            key={`${index}-${i}-line`}
-            x1={x1}
-            y1={y1}
-            x2={x2}
-            y2={y2}
-            opacity={shouldHighlight ? 1 : 0.1}
-            strokeWidth={lineObject[item][0].lineOptions?.strokeWidth ?? 3}
-            strokeLinecap={lineObject[item][0].lineOptions?.strokeLinecap ?? 'round'}
-            strokeDasharray={lineObject[item][0].lineOptions?.strokeDasharray}
-            stroke={lineObject[item][i].color}
-            transform={`translate(${xScaleBandwidthTranslate}, 0)`}
-            {...(_isLegendHighlighted(item) && {
-              onMouseOver: _lineHover.bind(lineObject[item][i - 1]),
-              onMouseLeave: _lineHoverOut,
-            })}
-          />,
-        );
-      }
-    });
-    Object.keys(lineObject).forEach((item: string, index: number) => {
-      lineObject[item].forEach((circlePoint: LinePoint, subIndex: number) => {
-        const circleRef: { refElement: SVGCircleElement | null } = { refElement: null };
-        dots.push(
-          <circle
-            key={`${index}-${subIndex}-dot`}
-            cx={xScale(circlePoint.xItem.xAxisPoint)}
-            cy={
-              circlePoint.useSecondaryYScale && secondaryYScale ? secondaryYScale(circlePoint.y) : yScale(circlePoint.y)
-            }
-            onMouseOver={
-              _isLegendHighlighted(item)
-                ? (event: React.MouseEvent<SVGElement, MouseEvent>) => _lineHover(circlePoint, event)
-                : (event: React.MouseEvent<SVGElement, MouseEvent>) => _onStackHover(circlePoint.xItem, event)
-            }
-            {...(_isLegendHighlighted(item) && {
-              onMouseLeave: _lineHoverOut,
-            })}
-            r={_getCircleVisibilityAndRadius(circlePoint.xItem.xAxisPoint, circlePoint.legend).radius}
-            stroke={circlePoint.color}
-            fill={tokens.colorNeutralBackground1}
-            strokeWidth={3}
-            visibility={_getCircleVisibilityAndRadius(circlePoint.xItem.xAxisPoint, circlePoint.legend).visibility}
-            transform={`translate(${xScaleBandwidthTranslate}, 0)`}
-            data-is-focusable={_isLegendHighlighted(item)}
-            ref={e => (circleRef.refElement = e)}
-            onFocus={_lineFocus.bind(circlePoint, circleRef)}
-            onBlur={_lineHoverOut}
-            tabIndex={circlePoint.legend !== '' ? 0 : undefined}
-          />,
-        );
-      });
-    });
-    return (
-      <>
-        {borderForLines}
-        {lines}
-        {dots}
-      </>
-    );
-  }
-
-  function _getCircleVisibilityAndRadius(
-    xAxisPoint: string | number | Date,
-    legend: string,
-  ): { visibility: CircleVisbility; radius: number } {
-    if (!_noLegendHighlighted()) {
-      if (xAxisPoint === activeXAxisDataPoint && _isLegendHighlighted(legend)) {
-        return { visibility: CircleVisbility.show, radius: 8 };
-      } else if (_isLegendHighlighted(legend)) {
-        return { visibility: CircleVisbility.show, radius: 0.3 };
-      } else {
-        return { visibility: CircleVisbility.hide, radius: 0 };
-      }
-    } else {
-      return {
-        visibility: activeXAxisDataPoint === xAxisPoint ? CircleVisbility.show : CircleVisbility.hide,
-        radius: 8,
-      };
-    }
-  }
-
   function _renderCallout(props?: VSChartDataPoint): JSX.Element | null {
-    return props ? (
-      <ChartPopover
-        culture={props.culture ?? 'en-us'}
-        XValue={props.xAxisCalloutData}
-        xCalloutValue={xCalloutValue}
-        yCalloutValue={yCalloutValue}
-        clickPosition={clickPosition}
-        isPopoverOpen={isPopoverOpen}
-        legend={props.legend}
-        YValue={props.yAxisCalloutData}
-        color={props.color}
-      />
+    return props && isPopoverOpen ? (
+      <React.Suspense fallback={null}>
+        <LazyChartPopover
+          culture={props.culture ?? 'en-us'}
+          XValue={props.xAxisCalloutData}
+          xCalloutValue={xCalloutValue}
+          yCalloutValue={yCalloutValue}
+          clickPosition={clickPosition}
+          isPopoverOpen={isPopoverOpen}
+          legend={props.legend}
+          YValue={props.yAxisCalloutData}
+          color={props.color}
+        />
+      </React.Suspense>
     ) : null;
   }
 
@@ -663,17 +428,6 @@ export const VerticalStackedBarChart: React.FunctionComponent<VerticalStackedBar
     }
   }
 
-  function _lineHover(lineData: LinePoint, mouseEvent: React.MouseEvent<SVGElement>) {
-    mouseEvent.persist();
-    _lineHoverFocus(lineData);
-  }
-
-  function _lineFocus(lineData: LinePoint, ref: { refElement: SVGCircleElement | null }) {
-    if (ref.refElement) {
-      _lineHoverFocus(lineData);
-    }
-  }
-
   function _onStackHover(stack: VerticalStackedChartProps, mouseEvent: React.MouseEvent<SVGElement>): void {
     mouseEvent.persist();
     _onStackHoverFocus(stack, mouseEvent);
@@ -708,7 +462,7 @@ export const VerticalStackedBarChart: React.FunctionComponent<VerticalStackedBar
     // When displaying gaps between the bars, the height of each bar is
     // adjusted so that the total of all bars is not changed by the gaps
     const totalData = bars.reduce((iter, value) => iter + Math.abs(value.data), 0);
-    const totalHeight = defaultTotalHeight ?? yBarScale(totalData);
+    const totalHeight = yBarScale(totalData);
     let sumOfPercent = 0;
     bars.forEach(point => {
       let value = (Math.abs(point.data) / totalData) * 100;
@@ -736,26 +490,19 @@ export const VerticalStackedBarChart: React.FunctionComponent<VerticalStackedBar
     if (_xAxisType === XAxisTypes.NumericAxis) {
       const xMax = d3Max(_dataset, (point: VerticalStackedBarDataPoint) => point.x as number)!;
       const xMin = d3Min(_dataset, (point: VerticalStackedBarDataPoint) => point.x as number)!;
-
       const xBarScale = d3ScaleLinear()
         .domain(_isRtl ? [xMax, xMin] : [xMin, xMax])
         .nice()
         .range([_margins.left! + _domainMargin, containerWidth - _margins.right! - _domainMargin]);
-
       return { xBarScale, yBarScale };
     }
     if (_xAxisType === XAxisTypes.DateAxis) {
-      const sDate = d3Min(_dataset, (point: VerticalStackedBarDataPoint) => {
-        return point.x as Date;
-      })!;
-      const lDate = d3Max(_dataset, (point: VerticalStackedBarDataPoint) => {
-        return point.x as Date;
-      })!;
+      const sDate = d3Min(_dataset, (point: VerticalStackedBarDataPoint) => point.x as Date)!;
+      const lDate = d3Max(_dataset, (point: VerticalStackedBarDataPoint) => point.x as Date)!;
       const xBarScale = props.useUTC ? d3ScaleUtc() : d3ScaleTime();
       xBarScale
         .domain(_isRtl ? [lDate, sDate] : [sDate, lDate])
         .range([_margins.left! + _domainMargin, containerWidth - _margins.right! - _domainMargin]);
-
       return { xBarScale, yBarScale };
     }
     const xBarScale = d3ScaleBand()
@@ -767,7 +514,6 @@ export const VerticalStackedBarChart: React.FunctionComponent<VerticalStackedBar
       )
       .paddingInner(_xAxisInnerPadding)
       .paddingOuter(_xAxisOuterPadding);
-
     return { xBarScale, yBarScale };
   }
 
@@ -1027,19 +773,124 @@ export const VerticalStackedBarChart: React.FunctionComponent<VerticalStackedBar
       } catch (e) {}
     }
     if (!props.wrapXAxisLables && props.showXAxisLablesTooltip) {
-      const xAxisElement = d3Select(xElement).call(xBarScale);
-      try {
-        document.getElementById(_tooltipId) && document.getElementById(_tooltipId)!.remove();
-        // eslint-disable-next-line no-empty
-      } catch (e) {}
-      const tooltipProps = {
-        tooltipCls: classes.tooltip!,
-        id: _tooltipId,
-        xAxis: xAxisElement,
-      };
-      xAxisElement && tooltipOfXAxislabels(tooltipProps);
+      const xAxisDomElement = document.getElementById('your-x-axis-id');
+      if (xAxisDomElement) {
+        try {
+          document.getElementById(_tooltipId) && document.getElementById(_tooltipId)!.remove();
+          // eslint-disable-next-line no-empty
+        } catch (e) {}
+        const tooltipProps = {
+          tooltipCls: classes.tooltip!,
+          id: _tooltipId,
+          xAxis: xAxisDomElement,
+        };
+        tooltipOfXAxislabels(tooltipProps);
+      }
     }
     return bars.filter((bar): bar is JSX.Element => !!bar);
+  }
+
+  const MemoizedLineOverlay = React.memo(LazyLineOverlay);
+  function renderLinesIfNeeded(props: ChildProps) {
+    const hasLines =
+      props && _points.some((item: VerticalStackedChartProps) => item.lineData && item.lineData.length > 0);
+    if (!hasLines) return null;
+    return (
+      <React.Suspense fallback={null}>
+        <MemoizedLineOverlay
+          data={_points}
+          xScale={props.xScale}
+          yScale={props.yScale}
+          containerHeight={props.containerHeight!}
+          containerWidth={props.containerWidth!}
+          yScaleSecondary={props.yScaleSecondary}
+          xAxisType={_xAxisType}
+          isLegendHighlighted={_isLegendHighlighted}
+          noLegendHighlighted={_noLegendHighlighted}
+        />
+      </React.Suspense>
+    );
+  }
+
+  function _getLegendData(data: VerticalStackedChartProps[], lineLegends: LineLegends[]): JSX.Element {
+    if (props.hideLegend) {
+      return <></>;
+    }
+    const [Legends, setLegends] = React.useState<React.ComponentType<any> | null>(null);
+    React.useEffect(() => {
+      if (!Legends) {
+        import('../../index').then(mod => setLegends(() => mod.Legends));
+      }
+    }, [Legends]);
+    if (!Legends) return <></>;
+    // Combine bar and line legends
+    const defaultPalette: string[] = [
+      getColorFromToken(DataVizPalette.color6),
+      getColorFromToken(DataVizPalette.color1),
+      getColorFromToken(DataVizPalette.color5),
+      getColorFromToken(DataVizPalette.color7),
+      getColorFromToken(DataVizPalette.color10),
+    ];
+    const actions: Legend[] = [];
+    const { allowHoverOnLegend = true } = props;
+    data.forEach((singleChartData: VerticalStackedChartProps) => {
+      singleChartData.chartData.forEach((point: VSChartDataPoint) => {
+        const color: string = point.color ? point.color : defaultPalette[Math.floor(Math.random() * 4 + 1)];
+        const checkSimilarLegends = actions.filter((leg: Legend) => leg.title === point.legend && leg.color === color);
+        if (checkSimilarLegends!.length > 0) {
+          return;
+        }
+        const legend: Legend = {
+          title: point.legend,
+          color,
+          hoverAction: allowHoverOnLegend
+            ? () => {
+                _handleChartMouseLeave();
+                setActiveLegend(point.legend);
+              }
+            : undefined,
+          onMouseOutAction: allowHoverOnLegend ? () => setActiveLegend(undefined) : undefined,
+        };
+        actions.push(legend);
+      });
+    });
+    const legendsOfLine: Legend[] = [];
+    if (lineLegends && lineLegends.length > 0) {
+      lineLegends.forEach((point: LineLegends) => {
+        const legend: Legend = {
+          title: point.title,
+          color: point.color,
+          isLineLegendInBarChart: true,
+          hoverAction: allowHoverOnLegend
+            ? () => {
+                _handleChartMouseLeave();
+                setActiveLegend(point.title);
+              }
+            : undefined,
+          onMouseOutAction: allowHoverOnLegend ? () => setActiveLegend(undefined) : undefined,
+        };
+        legendsOfLine.push(legend);
+      });
+    }
+    const totalLegends: Legend[] = legendsOfLine.concat(actions);
+    return (
+      <Legends
+        legends={totalLegends}
+        enabledWrapLines={props.enabledLegendsWrapLines}
+        overflowText={props.legendsOverflowText}
+        {...props.legendProps}
+        onChange={(_selectedLegends: string[], event: React.MouseEvent<HTMLButtonElement>, currentLegend?: Legend) => {
+          if (props.legendProps?.canSelectMultipleLegends) {
+            setSelectedLegends(_selectedLegends);
+          } else {
+            setSelectedLegends(_selectedLegends.slice(-1));
+          }
+          if (props.legendProps?.onChange) {
+            props.legendProps.onChange(_selectedLegends, event, currentLegend);
+          }
+        }}
+      />
+    );
   }
 
   if (!_isChartEmpty()) {
@@ -1103,16 +954,7 @@ export const VerticalStackedBarChart: React.FunctionComponent<VerticalStackedBar
           return (
             <>
               <g>{_bars}</g>
-              <g>
-                {_isHavingLines &&
-                  _createLines(
-                    props.xScale!,
-                    props.yScale!,
-                    props.containerHeight!,
-                    props.containerWidth!,
-                    props.yScaleSecondary,
-                  )}
-              </g>
+              <g>{renderLinesIfNeeded(props)}</g>
             </>
           );
         }}
