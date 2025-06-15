@@ -18,3 +18,6 @@ export * from './AreaChart';
 export * from './HorizontalBarChartWithAxis';
 export * from './HeatMapChart';
 export * from './SankeyChart';
+
+// New unified chart components are available in './unified-charts'
+// Import them like: import { UnifiedChart, CoordinateSystem } from './unified-charts';
