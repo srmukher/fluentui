@@ -14,8 +14,8 @@ import {
   AxisType,
   ScaleType,
   ChartDataPoint,
-  ChartSeries,
 } from '../Chart.types';
+import { createNumericXAxis, getDomainNRangeValues, XAxisTypes, ChartTypes } from '../cartesianHelpers';
 
 /**
  * Hook for creating and managing chart scales for different coordinate systems
@@ -29,9 +29,80 @@ export function useChartScales(props: UseChartScalesProps): UseChartScalesReturn
     // Extract all data points for domain calculation
     const allPoints = data.flatMap(series => series.data);
 
-    axes.forEach(axis => {
-      const { type, scaleType, domain, range } = axis;
+    if (coordinateSystem === CoordinateSystem.Cartesian) {
+      // Transform UnifiedChart data to format expected by existing utilities (for axis/scale helpers only)
+      const transformedPoints = data.map(series => ({
+        legend: series.name || '',
+        data: series.data.map(point => ({
+          ...point,
+          x: point.x,
+          y: point.y,
+        })),
+      }));
 
+      // Detect chart type for scale helpers
+      let detectedChartType = ChartTypes.LineChart;
+      if (axes.some(a => a.type === AxisType.Y && a.scaleType === ScaleType.Linear)) {
+        detectedChartType = ChartTypes.LineChart;
+      }
+      // You can extend this detection for Area, Bar, etc. as needed
+
+      // Use shared helpers for all axis/scale creation
+      axes.forEach(axis => {
+        const { type } = axis;
+        let scale;
+        if (type === AxisType.X) {
+          scale = createNumericXAxis(
+            {
+              domainNRangeValues: getDomainNRangeValues(
+                transformedPoints,
+                margins!,
+                containerWidth,
+                detectedChartType,
+                false,
+                XAxisTypes.NumericAxis,
+                0,
+                undefined,
+                0,
+              ),
+              margins: margins!,
+              containerHeight,
+              containerWidth,
+            },
+            {},
+            detectedChartType,
+          ).xScale;
+        } else if (type === AxisType.Y) {
+          // Get y-domain from helper
+          const yDomain = getDomainNRangeValues(
+            transformedPoints,
+            margins!,
+            containerWidth,
+            detectedChartType,
+            false,
+            XAxisTypes.NumericAxis,
+            0,
+            undefined,
+            0,
+          );
+          // Debug log
+          console.log('Y domain for scale:', yDomain.dStartValue, yDomain.dEndValue);
+          // Fallback if domain is [0, 0]
+          const yVals = data.flatMap(series => series.data.map(p => p.y)).filter(val => typeof val === 'number');
+          let minY = Math.min(...yVals);
+          let maxY = Math.max(...yVals);
+          // Always set domain as [maxY, minY] for y-axis so min is at bottom, max at top
+          scale = d3ScaleLinear()
+            .domain([maxY, minY])
+            .range([margins!.top!, containerHeight - margins!.bottom!]);
+        }
+        scaleMap[type] = scale;
+      });
+      return scaleMap;
+    }
+
+    axes.forEach(axis => {
+      const { type, scaleType, domain } = axis;
       // Calculate domain if not provided
       let calculatedDomain: [any, any];
       if (domain) {
@@ -39,23 +110,19 @@ export function useChartScales(props: UseChartScalesProps): UseChartScalesReturn
       } else {
         calculatedDomain = calculateDomain(allPoints, type, scaleType);
       }
-
       // Calculate range based on coordinate system and axis type
       const calculatedRange = calculateRange(
         type,
         coordinateSystem,
         containerWidth,
         containerHeight,
-        margins,
+        margins!,
         coordinateSystemProps,
       );
-
       // Create scale based on type
       const scale = createScale(scaleType, calculatedDomain, calculatedRange, coordinateSystemProps);
-
       scaleMap[type] = scale;
     });
-
     return scaleMap;
   }, [data, axes, coordinateSystem, containerWidth, containerHeight, margins, coordinateSystemProps]);
 
@@ -75,8 +142,10 @@ export function useChartScales(props: UseChartScalesProps): UseChartScalesReturn
 
             // Use centerX, centerY from coordinateSystemProps.polar if provided
             const polarProps = coordinateSystemProps?.polar || {};
-            const centerX = polarProps.centerX ?? margins.left + (containerWidth - margins.left - margins.right) / 2;
-            const centerY = polarProps.centerY ?? margins.top + (containerHeight - margins.top - margins.bottom) / 2;
+            const centerX =
+              polarProps.centerX ?? margins!.left! + (containerWidth - margins!.left! - margins!.right!) / 2;
+            const centerY =
+              polarProps.centerY ?? margins!.top! + (containerHeight - margins!.top! - margins!.bottom!) / 2;
 
             return {
               x: centerX + r * Math.cos(theta),
@@ -112,17 +181,21 @@ export function useChartScales(props: UseChartScalesProps): UseChartScalesReturn
 
         case CoordinateSystem.Polar:
           if (scales[AxisType.Radial] && scales[AxisType.Angular]) {
-            const centerX = margins.left + (containerWidth - margins.left - margins.right) / 2;
-            const centerY = margins.top + (containerHeight - margins.top - margins.bottom) / 2;
+            const polarProps = coordinateSystemProps?.polar || {};
+            const centerX =
+              polarProps.centerX ?? margins!.left! + (containerWidth - margins!.left! - margins.right!) / 2;
+            const centerY =
+              polarProps.centerY ?? margins!.top! + (containerHeight - margins!.top! - margins.bottom!) / 2;
 
             const dx = x - centerX;
             const dy = y - centerY;
             const r = Math.sqrt(dx * dx + dy * dy);
-            const theta = Math.atan2(dy, dx);
+            let theta = Math.atan2(dy, dx);
+            if (theta < 0) theta += 2 * Math.PI;
 
             return {
-              x: 0, // Not used in polar
-              y: 0, // Not used in polar
+              x: 0, // Not used in polar but required by ChartDataPoint
+              y: 0, // Not used in polar but required by ChartDataPoint
               r: scales[AxisType.Radial].invert(r),
               theta: scales[AxisType.Angular].invert(theta),
             };
@@ -171,11 +244,11 @@ function calculateDomain(points: ChartDataPoint[], axisType: AxisType, scaleType
           return 0;
       }
     })
-    .filter(val => val !== undefined && val !== null);
+    .filter(val => val !== undefined && val !== null && typeof val === 'number');
 
   if (values.length === 0) {
     // For log, must be > 0
-    return scaleType === ScaleType.Log ? [0.1, 1] : [0, 1];
+    return scaleType === ScaleType.Log ? [1, 10] : [0, 1];
   }
 
   const min = d3Min(values) as number;
@@ -212,34 +285,30 @@ function calculateRange(
       switch (axisType) {
         case AxisType.X:
         case AxisType.LogX:
-          return [margins.left, containerWidth - margins.right];
+          return [margins.left!, containerWidth - margins.right!];
         case AxisType.Y:
         case AxisType.LogY:
-          return [containerHeight - margins.bottom, margins.top];
+          return [containerHeight - margins.bottom, margins.top!];
         case AxisType.YSecondary:
-          return [containerWidth - margins.right, margins.left];
+          return [containerWidth - margins.right!, margins.left!];
         default:
           return [0, 1];
       }
 
     case CoordinateSystem.Polar:
       const polarProps = coordinateSystemProps?.polar;
-      const centerX = polarProps?.centerX ?? margins.left + (containerWidth - margins.left - margins.right) / 2;
-      const centerY = polarProps?.centerY ?? margins.top + (containerHeight - margins.top - margins.bottom) / 2;
       const maxRadius =
         polarProps?.radius ??
         Math.min(
-          (containerWidth - margins.left - margins.right) / 2,
-          (containerHeight - margins.top - margins.bottom) / 2,
+          (containerWidth - margins.left! - margins.right!) / 2,
+          (containerHeight - margins.top! - margins.bottom!) / 2,
         );
 
       switch (axisType) {
-        case AxisType.Angular:
-          const startAngle = polarProps?.startAngle ?? 0;
-          const endAngle = polarProps?.endAngle ?? 2 * Math.PI;
-          return [startAngle, endAngle];
         case AxisType.Radial:
           return [0, maxRadius];
+        case AxisType.Angular:
+          return [0, 2 * Math.PI];
         default:
           return [0, 1];
       }
@@ -247,9 +316,9 @@ function calculateRange(
     case CoordinateSystem.Logarithmic:
       switch (axisType) {
         case AxisType.LogX:
-          return [margins.left, containerWidth - margins.right];
+          return [margins.left!, containerWidth - margins.right!];
         case AxisType.LogY:
-          return [containerHeight - margins.bottom, margins.top];
+          return [containerHeight - margins.bottom, margins.top!];
         default:
           return [0, 1];
       }
