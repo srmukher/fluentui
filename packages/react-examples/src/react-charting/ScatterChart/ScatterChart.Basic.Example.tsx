@@ -68,73 +68,87 @@ export class ScatterChartBasicExample extends React.Component<{}, IScatterChartB
       scatterChartData: [
         {
           legend: 'Phase 1',
+          legendShape: 'circle',
           data: [
             {
               x: 10,
               y: 50000,
               markerSize: 12, // Number of transactions
+              shape: 'circle',
             },
             {
               x: 20,
               y: 75000,
               markerSize: 15,
+              shape: 'circle',
             },
             {
               x: 30,
               y: 90000,
               markerSize: 18,
+              shape: 'circle',
             },
             {
               x: 40,
               y: 120000,
               markerSize: 22,
+              shape: 'circle',
             },
             {
               x: 50,
               y: 150000,
               markerSize: 25,
+              shape: 'circle',
             },
           ],
           color: DataVizPalette.color3,
         },
         {
           legend: 'Phase 2',
+          legendShape: 'square',
           data: [
             {
               x: 60,
               y: 180000,
               markerSize: 28,
+              shape: 'square',
             },
             {
               x: 70,
               y: 200000,
               markerSize: 30,
+              shape: 'square',
             },
             {
               x: 80,
               y: 220000,
               markerSize: 32,
+              shape: 'square',
             },
             {
               x: 90,
               y: 250000,
               markerSize: 35,
+              shape: 'square',
             },
             {
               x: 100,
               y: 300000,
               markerSize: 40,
+              shape: 'square',
             },
           ],
           color: DataVizPalette.color4,
         },
         {
           legend: 'Milestone',
+          legendShape: 'diamond',
           data: [
             {
               x: 75,
               y: 250000,
               markerSize: 50, // Large number of transactions
+              shape: 'diamond',
             },
           ],
           color: DataVizPalette.color5,

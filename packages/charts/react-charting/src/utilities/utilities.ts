@@ -1503,6 +1503,9 @@ export enum Points {
   hexagon,
   pentagon,
   octagon,
+  cross,
+  x,
+  rectangle,
 }
 
 export enum CustomPoints {
@@ -1552,6 +1555,15 @@ export const pointTypes: PointTypes = {
   },
   [Points.octagon]: {
     widthRatio: 2.414,
+  },
+  [Points.cross]: {
+    widthRatio: 1,
+  },
+  [Points.x]: {
+    widthRatio: 1,
+  },
+  [Points.rectangle]: {
+    widthRatio: 1,
   },
 };
 
@@ -1873,7 +1885,7 @@ export function domainRangeOfNumericForScatterChart(
   })!;
 
   let xMax = d3Max(points, (point: ILineChartPoints) => {
-    return d3Max(point.data as IScatterChartDataPoint[], (item: ILineChartDataPoint) => {
+    return d3Max(point.data as IScatterChartDataPoint[], (item: IScatterChartDataPoint) => {
       return item.x as number;
     });
   })!;

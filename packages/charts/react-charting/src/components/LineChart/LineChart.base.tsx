@@ -132,6 +132,41 @@ const _getPointPath = (x: number, y: number, w: number, index: number): string =
      L${x - 1.207 * w} ${y + 0.5001 * w}
      L${x - 1.207 * w} ${y - 0.5001 * w}
      Z`,
+    //cross
+    `M${x - w / 2} ${y - w / 2}
+     L${x + w / 2} ${y - w / 2}
+     L${x + w / 2} ${y - w / 6}
+     L${x + w / 6} ${y - w / 6}
+     L${x + w / 6} ${y + w / 6}
+     L${x + w / 2} ${y + w / 6}
+     L${x + w / 2} ${y + w / 2}
+     L${x - w / 2} ${y + w / 2}
+     L${x - w / 2} ${y + w / 6}
+     L${x - w / 6} ${y + w / 6}
+     L${x - w / 6} ${y - w / 6}
+     L${x - w / 2} ${y - w / 6}
+     Z`,
+    //x
+    `M${x - w / 2} ${y - w / 2}
+     L${x - w / 6} ${y - w / 6}
+     L${x + w / 6} ${y + w / 6}
+     L${x + w / 2} ${y + w / 2}
+     L${x + w / 6} ${y + w / 6}
+     L${x - w / 6} ${y - w / 6}
+     Z
+     M${x + w / 2} ${y - w / 2}
+     L${x + w / 6} ${y - w / 6}
+     L${x - w / 6} ${y + w / 6}
+     L${x - w / 2} ${y + w / 2}
+     L${x - w / 6} ${y + w / 6}
+     L${x + w / 6} ${y - w / 6}
+     Z`,
+    //rectangle
+    `M${x - w / 2} ${y - w / 3}
+     L${x + w / 2} ${y - w / 3}
+     L${x + w / 2} ${y + w / 3}
+     L${x - w / 2} ${y + w / 3}
+     Z`,
   ];
   return allPointPaths[index];
 };

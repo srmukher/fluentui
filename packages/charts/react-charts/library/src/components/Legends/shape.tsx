@@ -24,6 +24,9 @@ const pointPath: PointPathType = {
   [`${Points[Points.pentagon]}`]: 'M6.06061 0L0 4.21277L2.30303 11H9.69697L12 4.21277L6.06061 0Z',
   [`${Points[Points.octagon]}`]:
     'M7.08333 0H2.91667L0 2.91667V7.08333L2.91667 10H7.08333L10 7.08333V2.91667L7.08333 0Z',
+  [`${Points[Points.cross]}`]: 'M5 1 L5 5 L1 5 L1 7 L5 7 L5 11 L7 11 L7 7 L11 7 L11 5 L7 5 L7 1 Z',
+  [`${Points[Points.x]}`]: 'M2 2 L10 10 M10 2 L2 10',
+  [`${Points[Points.rectangle]}`]: 'M1 3 L12 3 L12 10 L1 10 Z',
   [`${CustomPoints[CustomPoints.dottedLine]}`]: 'M0 6 H3 M5 6 H8 M10 6 H13',
 };
 

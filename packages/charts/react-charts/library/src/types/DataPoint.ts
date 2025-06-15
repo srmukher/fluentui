@@ -348,6 +348,11 @@ export interface ScatterChartDataPoint extends BaseDataPoint {
    * Marker size of the points
    */
   markerSize?: number;
+
+  /**
+   * Shape of the marker for this data point
+   */
+  shape?: LegendShape;
 }
 
 /**
