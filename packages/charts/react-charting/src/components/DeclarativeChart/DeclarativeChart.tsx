@@ -2,12 +2,9 @@
 import * as React from 'react';
 import { useTheme } from '@fluentui/react';
 import { IRefObject } from '@fluentui/react/lib/Utilities';
-import { DonutChart } from '../DonutChart/index';
-import { VerticalStackedBarChart } from '../VerticalStackedBarChart/index';
 import { decodeBase64Fields } from '@fluentui/chart-utilities';
 import type { PlotData, PlotlySchema, OutputChartType } from '@fluentui/chart-utilities';
 import { isArrayOrTypedArray, isMonthArray, mapFluentChart, sanitizeJson } from '@fluentui/chart-utilities';
-
 import type { GridProperties } from './PlotlySchemaAdapter';
 import {
   correctYearMonth,
@@ -28,19 +25,32 @@ import {
   getAllupLegendsProps,
 } from './PlotlySchemaAdapter';
 import type { ColorwayType } from './PlotlyColorAdapter';
-import { LineChart } from '../LineChart/index';
-import { HorizontalBarChartWithAxis } from '../HorizontalBarChartWithAxis/index';
-import { AreaChart } from '../AreaChart/index';
-import { HeatMapChart } from '../HeatMapChart/index';
-import { SankeyChart } from '../SankeyChart/SankeyChart';
-import { GaugeChart } from '../GaugeChart/index';
-import { GroupedVerticalBarChart } from '../GroupedVerticalBarChart/index';
-import { VerticalBarChart } from '../VerticalBarChart/index';
 import { IChart, IImageExportOptions } from '../../types/index';
 import { withResponsiveContainer } from '../ResponsiveContainer/withResponsiveContainer';
-import { ScatterChart } from '../ScatterChart/index';
-import { ChartTable } from '../ChartTable/index';
 import { ILegendsProps, Legends } from '../Legends/index';
+
+const DonutChart = React.lazy(() => import('../DonutChart/DonutChart').then(m => ({ default: m.DonutChart })));
+const VerticalStackedBarChart = React.lazy(() =>
+  import('../VerticalStackedBarChart/VerticalStackedBarChart').then(m => ({ default: m.VerticalStackedBarChart })),
+);
+const LineChart = React.lazy(() => import('../LineChart/LineChart').then(m => ({ default: m.LineChart })));
+const HorizontalBarChartWithAxis = React.lazy(() =>
+  import('../HorizontalBarChartWithAxis/HorizontalBarChartWithAxis').then(m => ({
+    default: m.HorizontalBarChartWithAxis,
+  })),
+);
+const AreaChart = React.lazy(() => import('../AreaChart/AreaChart').then(m => ({ default: m.AreaChart })));
+const HeatMapChart = React.lazy(() => import('../HeatMapChart/HeatMapChart').then(m => ({ default: m.HeatMapChart })));
+const SankeyChart = React.lazy(() => import('../SankeyChart/SankeyChart').then(m => ({ default: m.SankeyChart })));
+const GaugeChart = React.lazy(() => import('../GaugeChart/GaugeChart').then(m => ({ default: m.GaugeChart })));
+const GroupedVerticalBarChart = React.lazy(() =>
+  import('../GroupedVerticalBarChart/GroupedVerticalBarChart').then(m => ({ default: m.GroupedVerticalBarChart })),
+);
+const VerticalBarChart = React.lazy(() =>
+  import('../VerticalBarChart/VerticalBarChart').then(m => ({ default: m.VerticalBarChart })),
+);
+const ScatterChart = React.lazy(() => import('../ScatterChart/ScatterChart').then(m => ({ default: m.ScatterChart })));
+const ChartTable = React.lazy(() => import('../ChartTable/ChartTable').then(m => ({ default: m.ChartTable })));
 
 const ResponsiveDonutChart = withResponsiveContainer(DonutChart);
 const ResponsiveVerticalStackedBarChart = withResponsiveContainer(VerticalStackedBarChart);
@@ -116,9 +126,7 @@ const useColorMapping = () => {
 
 function renderChart<TProps>(
   Renderer: React.ComponentType<TProps>,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   transformer: (...args: any[]) => TProps,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   transformerArgs: any[],
   commonProps: Partial<TProps>,
   cellRow: number,
@@ -403,7 +411,7 @@ export const DeclarativeChart: React.FunctionComponent<DeclarativeChartProps> = 
   type ChartType = keyof ChartTypeMap;
   // map through the grouped traces and render the appropriate chart
   return (
-    <>
+    <React.Suspense fallback={<div>Loading chart...</div>}>
       <div
         style={{
           display: 'grid',
@@ -459,7 +467,7 @@ export const DeclarativeChart: React.FunctionComponent<DeclarativeChartProps> = 
         })}
       </div>
       {isMultiPlot.current && createLegends(allupLegendsProps)}
-    </>
+    </React.Suspense>
   );
 });
 DeclarativeChart.displayName = 'DeclarativeChart';
