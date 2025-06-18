@@ -1,3 +1,6 @@
+import { useImageExport } from '../CommonComponents/imageExportUtils';
+import { isChartEmpty } from '../CommonComponents/chartUtils';
+import { isLegendHighlighted, noLegendHighlighted } from '../CommonComponents/legendUtils';
 import * as React from 'react';
 import { max as d3Max, min as d3Min } from 'd3-array';
 import { select as d3Select } from 'd3-selection';
@@ -50,7 +53,6 @@ import {
   Legends,
 } from '../../index';
 import { IChart, IImageExportOptions } from '../../types/index';
-import { toImage } from '../../utilities/image-export-utils';
 import { ILegendContainer } from '../Legends/index';
 import { rgb } from 'd3-color';
 
@@ -257,9 +259,8 @@ export class GroupedVerticalBarChartBase
     return this._cartesianChartRef.current?.chartContainer || null;
   }
 
-  public toImage = (opts?: IImageExportOptions): Promise<string> => {
-    return toImage(this._cartesianChartRef.current?.chartContainer, this._legendsRef.current?.toSVG, this._isRtl, opts);
-  };
+  public toImage = (opts?: IImageExportOptions): Promise<string> =>
+    useImageExport(this._cartesianChartRef, this._legendsRef, getRTL())(opts);
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private _getMinMaxOfYAxis = (datasetForBars: any, yAxisType?: YAxisType, useSecondaryYScale?: boolean) => {
@@ -362,7 +363,7 @@ export class GroupedVerticalBarChartBase
       this.setState({
         refSelected: mouseEvent,
         /** Show the callout if highlighted bar is hovered and Hide it if unhighlighted bar is hovered */
-        isCalloutVisible: this._noLegendHighlighted() || this._legendHighlighted(pointData.legend),
+        isCalloutVisible: this._noLegendsHighlighted() || this._legendHighlighted(pointData.legend),
         calloutLegend: pointData.legend,
         dataForHoverCard: pointData.data,
         color: pointData.color,
@@ -396,7 +397,7 @@ export class GroupedVerticalBarChartBase
     this.setState({
       refSelected: focusEvent.currentTarget,
       /** Show the callout if highlighted bar is focused and Hide it if unhighlighted bar is focused */
-      isCalloutVisible: this._noLegendHighlighted() || this._legendHighlighted(pointData.legend),
+      isCalloutVisible: this._noLegendsHighlighted() || this._legendHighlighted(pointData.legend),
       calloutLegend: pointData.legend,
       dataForHoverCard: pointData.data,
       color: pointData.color,
@@ -438,7 +439,7 @@ export class GroupedVerticalBarChartBase
         // To align the centers of the generated bandwidth and the calculated one when they differ,
         // use the following addend.
         const xPoint = xScale1(legendTitle) + (xScale1.bandwidth() - this._barWidth) / 2;
-        const isLegendActive = this._legendHighlighted(legendTitle) || this._noLegendHighlighted();
+        const isLegendActive = this._legendHighlighted(legendTitle) || this._noLegendsHighlighted();
         const barOpacity = isLegendActive ? '' : '0.1';
 
         let barTotalValue = 0;
@@ -678,24 +679,13 @@ export class GroupedVerticalBarChartBase
    * 1. selection: if the user clicks on it
    * 2. hovering: if there is no selected legend and the user hovers over it
    */
-  private _legendHighlighted = (legendTitle: string) => {
-    return this._getHighlightedLegend().includes(legendTitle!);
-  };
+  private _legendHighlighted = (legend: string) =>
+    isLegendHighlighted(legend, this.state.selectedLegends, this.state.activeLegend || '');
 
   /**
    * This function checks if none of the legends is selected or hovered.
    */
-  private _noLegendHighlighted = () => {
-    return this._getHighlightedLegend().length === 0;
-  };
-
-  private _getHighlightedLegend() {
-    return this.state.selectedLegends.length > 0
-      ? this.state.selectedLegends
-      : this.state.activeLegend
-      ? [this.state.activeLegend]
-      : [];
-  }
+  private _noLegendsHighlighted = () => noLegendHighlighted(this.state.selectedLegends, this.state.activeLegend || '');
 
   private _getAriaLabel = (point: IGVBarChartSeriesPoint, xAxisPoint: string): string => {
     const xValue = point.xAxisCalloutData || xAxisPoint;
@@ -759,11 +749,7 @@ export class GroupedVerticalBarChartBase
   };
 
   private _isChartEmpty(): boolean {
-    return !(
-      this.props.data &&
-      this.props.data.length > 0 &&
-      this.props.data.filter((item: IGroupedVerticalBarChartData) => item.series.length).length > 0
-    );
+    return isChartEmpty(this.props.data, 'groupedVerticalBar');
   }
 
   private _adjustProps(): void {

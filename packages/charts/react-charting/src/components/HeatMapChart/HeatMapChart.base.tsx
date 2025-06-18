@@ -1,3 +1,6 @@
+import { useImageExport } from '../CommonComponents/imageExportUtils';
+import { isChartEmpty } from '../CommonComponents/chartUtils';
+import { isLegendHighlighted, noLegendHighlighted } from '../CommonComponents/legendUtils';
 import { CartesianChart, IChildProps, IModifiedCartesianChartProps } from '../../components/CommonComponents/index';
 import {
   IAccessibilityProps,
@@ -39,7 +42,6 @@ import { Target } from '@fluentui/react';
 import { format as d3Format } from 'd3-format';
 import { timeFormat as d3TimeFormat } from 'd3-time-format';
 import { getColorContrast } from '../../utilities/colors';
-import { toImage } from '../../utilities/image-export-utils';
 
 type DataSet = {
   dataSet: RectanglesGraphData;
@@ -280,9 +282,8 @@ export class HeatMapChartBase extends React.Component<IHeatMapChartProps, IHeatM
     return this._cartesianChartRef.current?.chartContainer || null;
   }
 
-  public toImage = (opts?: IImageExportOptions): Promise<string> => {
-    return toImage(this._cartesianChartRef.current?.chartContainer, this._legendsRef.current?.toSVG, getRTL(), opts);
-  };
+  public toImage = (opts?: IImageExportOptions): Promise<string> =>
+    useImageExport(this._cartesianChartRef, this._legendsRef, getRTL())(opts);
 
   private _getMinMaxOfYAxis = () => {
     return { startValue: 0, endValue: 0 };
@@ -326,7 +327,7 @@ export class HeatMapChartBase extends React.Component<IHeatMapChartProps, IHeatM
   };
 
   private _getOpacity = (legendTitle: string): string => {
-    const opacity = this._legendHighlighted(legendTitle) || this._noLegendHighlighted() ? '1' : '0.1';
+    const opacity = this._legendHighlighted(legendTitle) || this._noLegendsHighlighted() ? '1' : '0.1';
     return opacity;
   };
 
@@ -429,7 +430,7 @@ export class HeatMapChartBase extends React.Component<IHeatMapChartProps, IHeatM
               key={id}
               role="img"
               aria-label={this._getAriaLabel(dataPointObject)}
-              data-is-focusable={this._legendHighlighted(dataPointObject.legend) || this._noLegendHighlighted()}
+              data-is-focusable={this._legendHighlighted(dataPointObject.legend) || this._noLegendsHighlighted()}
               fillOpacity={this._getOpacity(dataPointObject.legend)}
               transform={`translate(${this._xAxisScale(dataPointObject.x)}, ${this._yAxisScale(dataPointObject.y)})`}
               ref={(gElement: SVGGElement) => {
@@ -471,7 +472,7 @@ export class HeatMapChartBase extends React.Component<IHeatMapChartProps, IHeatM
               key={id}
               role="img"
               aria-label={this._getAriaLabel(dataPointObject)}
-              data-is-focusable={this._noLegendHighlighted()}
+              data-is-focusable={this._noLegendsHighlighted()}
               transform={`translate(${this._xAxisScale(dataPointObject.x)}, ${this._yAxisScale(dataPointObject.y)})`}
               ref={(gElement: SVGGElement) => {
                 this._rectRefCallback(gElement, id, dataPointObject);
@@ -787,19 +788,18 @@ export class HeatMapChartBase extends React.Component<IHeatMapChartProps, IHeatM
    * 1. selection: if the user clicks on it
    * 2. hovering: if there is no selected legend and the user hovers over it
    */
-  private _legendHighlighted = (legendTitle: string) => {
-    return (
-      this.state.selectedLegend === legendTitle ||
-      (this.state.selectedLegend === '' && this.state.activeLegend === legendTitle)
+  private _legendHighlighted = (legend: string) =>
+    isLegendHighlighted(
+      legend,
+      this.state.selectedLegend ? [this.state.selectedLegend] : [],
+      this.state.activeLegend || '',
     );
-  };
 
   /**
    * This function checks if none of the legends is selected or hovered.
    */
-  private _noLegendHighlighted = () => {
-    return this.state.selectedLegend === '' && this.state.activeLegend === '';
-  };
+  private _noLegendsHighlighted = () =>
+    noLegendHighlighted(this.state.selectedLegend ? [this.state.selectedLegend] : [], this.state.activeLegend || '');
 
   private _getAriaLabel = (point: FlattenData): string => {
     const xValue = point.x;
@@ -814,7 +814,7 @@ export class HeatMapChartBase extends React.Component<IHeatMapChartProps, IHeatM
   };
 
   private _isChartEmpty(): boolean {
-    return !(this.props.data && this.props.data.length > 0);
+    return isChartEmpty(this.props.data, 'heatmap');
   }
 
   private _getChartTitle = (): string => {

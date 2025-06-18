@@ -54,8 +54,10 @@ import {
   YAxisType,
 } from '../../utilities/index';
 import { IChart, IImageExportOptions } from '../../types/index';
-import { toImage } from '../../utilities/image-export-utils';
 import { ScaleLinear } from 'd3-scale';
+import { isLegendHighlighted, noLegendHighlighted } from '../CommonComponents/legendUtils';
+import { isChartEmpty } from '../CommonComponents/chartUtils';
+import { useImageExport } from '../CommonComponents/imageExportUtils';
 
 type NumericAxis = D3Axis<number | { valueOf(): number }>;
 const getClassNames = classNamesFunction<ILineChartStyleProps, ILineChartStyles>();
@@ -394,9 +396,8 @@ export class LineChartBase extends React.Component<ILineChartProps, ILineChartSt
     return this._cartesianChartRef.current?.chartContainer || null;
   }
 
-  public toImage = (opts?: IImageExportOptions): Promise<string> => {
-    return toImage(this._cartesianChartRef.current?.chartContainer, this._legendsRef.current?.toSVG, this._isRTL, opts);
-  };
+  public toImage = (opts?: IImageExportOptions): Promise<string> =>
+    useImageExport(this._cartesianChartRef, this._legendsRef, getRTL())(opts);
 
   private _getDomainNRangeValues = (
     points: ILineChartPoints[],
@@ -740,7 +741,7 @@ export class LineChartBase extends React.Component<ILineChartProps, ILineChartSt
         const { x: x1, y: y1, xAxisCalloutData, xAxisCalloutAccessibilityData } = this._points[i].data[0];
         const circleId = `${this._circleId}_${i}`;
         const isLegendSelected: boolean =
-          this._legendHighlighted(legendVal) || this._noLegendHighlighted() || this.state.isSelectedLegend;
+          this._legendHighlighted(legendVal) || this._noLegendsHighlighted() || this.state.isSelectedLegend;
         const currentMarkerSize = this._points[i].data[0].markerSize!;
         pointsForLine.push(
           <circle
@@ -812,7 +813,7 @@ export class LineChartBase extends React.Component<ILineChartProps, ILineChartSt
           this._points[i].lineOptions?.strokeWidth || this.props.strokeWidth || DEFAULT_LINE_STROKE_SIZE;
 
         const isLegendSelected: boolean =
-          this._legendHighlighted(legendVal) || this._noLegendHighlighted() || this.state.isSelectedLegend;
+          this._legendHighlighted(legendVal) || this._noLegendsHighlighted() || this.state.isSelectedLegend;
 
         const lineData: [number, number][] = [];
         for (let k = 0; k < this._points[i].data.length; k++) {
@@ -912,7 +913,7 @@ export class LineChartBase extends React.Component<ILineChartProps, ILineChartSt
             this._points[i].lineOptions?.strokeWidth || this.props.strokeWidth || DEFAULT_LINE_STROKE_SIZE;
 
           const isLegendSelected: boolean =
-            this._legendHighlighted(legendVal) || this._noLegendHighlighted() || this.state.isSelectedLegend;
+            this._legendHighlighted(legendVal) || this._noLegendsHighlighted() || this.state.isSelectedLegend;
 
           const currentPointHidden = this._points[i].hideNonActiveDots && activePoint !== circleId;
           let currentMarkerSize = this._points[i].data[j - 1].markerSize!;
@@ -1325,7 +1326,7 @@ export class LineChartBase extends React.Component<ILineChartProps, ILineChartSt
         const startX = colorFillBar.data[j].startX;
         const endX = colorFillBar.data[j].endX;
         const opacity =
-          this._legendHighlighted(colorFillBar.legend) || this._noLegendHighlighted() || this.state.isSelectedLegend
+          this._legendHighlighted(colorFillBar.legend) || this._noLegendsHighlighted() || this.state.isSelectedLegend
             ? this._getColorFillBarOpacity(colorFillBar)
             : 0.1;
         colorFillBars.push(
@@ -1712,18 +1713,18 @@ export class LineChartBase extends React.Component<ILineChartProps, ILineChartSt
    * 1. selection: if the user clicks on it
    * 2. hovering: if there is no selected legend and the user hovers over it
    */
-  private _legendHighlighted = (legend: string) => {
-    return (
-      this.state.selectedLegend === legend || (this.state.selectedLegend === '' && this.state.activeLegend === legend)
+  private _legendHighlighted = (legend: string) =>
+    isLegendHighlighted(
+      legend,
+      this.state.selectedLegend ? [this.state.selectedLegend] : [],
+      this.state.activeLegend || '',
     );
-  };
 
   /**
    * This function checks if none of the legends is selected or hovered.
    */
-  private _noLegendHighlighted = () => {
-    return this.state.selectedLegend === '' && this.state.activeLegend === '';
-  };
+  private _noLegendsHighlighted = () =>
+    noLegendHighlighted(this.state.selectedLegend ? [this.state.selectedLegend] : [], this.state.activeLegend || '');
 
   private _getColorFillBarOpacity = (colorFillBar: IColorFillBarsProps) => {
     return colorFillBar.applyPattern ? 1 : 0.4;
@@ -1827,12 +1828,7 @@ export class LineChartBase extends React.Component<ILineChartProps, ILineChartSt
   };
 
   private _isChartEmpty(): boolean {
-    return !(
-      this.props.data &&
-      this.props.data.lineChartData &&
-      this.props.data.lineChartData.length > 0 &&
-      this.props.data.lineChartData.filter((item: ILineChartPoints) => item.data.length).length > 0
-    );
+    return isChartEmpty(this.props.data, 'line');
   }
 
   private _getChartTitle = (): string => {

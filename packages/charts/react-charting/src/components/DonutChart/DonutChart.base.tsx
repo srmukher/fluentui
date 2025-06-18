@@ -17,8 +17,10 @@ import {
 } from '../../utilities/index';
 import { formatToLocaleString } from '@fluentui/chart-utilities';
 import { IChart, IImageExportOptions } from '../../types/index';
-import { toImage } from '../../utilities/image-export-utils';
 import { ILegendContainer } from '../Legends/index';
+import { isLegendHighlighted, noLegendHighlighted } from '../CommonComponents/legendUtils';
+import { isChartEmpty } from '../CommonComponents/chartUtils';
+import { useImageExport } from '../CommonComponents/imageExportUtils';
 
 const getClassNames = classNamesFunction<IDonutChartStyleProps, IDonutChartStyles>();
 const LEGEND_CONTAINER_HEIGHT = 40;
@@ -54,6 +56,7 @@ export class DonutChartBase extends React.Component<IDonutChartProps, IDonutChar
   private _calloutAnchorPoint: IChartDataPoint | null;
   private _emptyChartId: string | null;
   private _legendsRef: React.RefObject<ILegendContainer>;
+  private _donutChartRef: React.RefObject<HTMLDivElement>;
 
   public static getDerivedStateFromProps(
     nextProps: Readonly<IDonutChartProps>,
@@ -97,6 +100,7 @@ export class DonutChartBase extends React.Component<IDonutChartProps, IDonutChar
     this._uniqText = getId('_Pie_');
     this._emptyChartId = getId('_DonutChart_empty');
     this._legendsRef = React.createRef();
+    this._donutChartRef = React.createRef();
   }
 
   public componentDidMount(): void {
@@ -164,7 +168,7 @@ export class DonutChartBase extends React.Component<IDonutChartProps, IDonutChar
                 hoverLeaveCallback={this._hoverLeave}
                 uniqText={this._uniqText}
                 onBlurCallback={this._onBlur}
-                activeArc={this._getHighlightedLegend()}
+                activeArc={[this.state.activeLegend || '']}
                 focusedArcId={this.state.focusedArcId || ''}
                 href={this.props.href!}
                 calloutId={this._calloutId}
@@ -219,9 +223,8 @@ export class DonutChartBase extends React.Component<IDonutChartProps, IDonutChar
     return this._rootElem;
   }
 
-  public toImage = (opts?: IImageExportOptions): Promise<string> => {
-    return toImage(this._rootElem, this._legendsRef.current?.toSVG, getRTL(), opts);
-  };
+  public toImage = (opts?: IImageExportOptions): Promise<string> =>
+    useImageExport(this._donutChartRef, this._legendsRef, getRTL())(opts);
 
   private _closeCallout = () => {
     this.setState({
@@ -321,7 +324,7 @@ export class DonutChartBase extends React.Component<IDonutChartProps, IDonutChar
     this._currentHoverElement = element;
     this.setState({
       /** Show the callout if highlighted arc is focused and Hide it if unhighlighted arc is focused */
-      showHover: this._noLegendsHighlighted() || this._isLegendHighlighted(data.legend),
+      showHover: this._noLegendsHighlighted() || this._legendHighlighted(data.legend || ''),
       value: data.data!.toString(),
       legend: data.legend,
       color: data.color!,
@@ -346,7 +349,7 @@ export class DonutChartBase extends React.Component<IDonutChartProps, IDonutChar
 
       this.setState({
         /** Show the callout if highlighted arc is hovered and Hide it if unhighlighted arc is hovered */
-        showHover: this._noLegendsHighlighted() || this._isLegendHighlighted(data.legend),
+        showHover: this._noLegendsHighlighted() || this._legendHighlighted(data.legend || ''),
         value: data.data!.toString(),
         legend: data.legend,
         color,
@@ -369,11 +372,11 @@ export class DonutChartBase extends React.Component<IDonutChartProps, IDonutChar
     this._calloutAnchorPoint = null;
     this.setState({ showHover: false });
   };
-
   private _valueInsideDonut(valueInsideDonut: string | number | undefined, data: IChartDataPoint[]) {
-    const highlightedLegends = this._getHighlightedLegend();
+    const highlightedLegends =
+      this.state.selectedLegends || this.state.activeLegend ? [this.state.activeLegend || ''] : [];
     if (valueInsideDonut !== undefined && (highlightedLegends.length === 1 || this.state.showHover)) {
-      const pointValue = data.find(point => this._isLegendHighlighted(point.legend));
+      const pointValue = data.find(point => this._legendHighlighted(point.legend || ''));
       return pointValue
         ? pointValue.yAxisCalloutData
           ? pointValue.yAxisCalloutData
@@ -405,28 +408,14 @@ export class DonutChartBase extends React.Component<IDonutChartProps, IDonutChar
    * the selected legend if there is one
    * or the hovered legend if none of the legends is selected.
    */
-  private _getHighlightedLegend() {
-    return this.state.selectedLegends.length > 0
-      ? this.state.selectedLegends
-      : this.state.activeLegend
-      ? [this.state.activeLegend]
-      : [];
-  }
 
-  private _isLegendHighlighted = (legend: string | undefined): boolean => {
-    return this._getHighlightedLegend().includes(legend!);
-  };
+  private _legendHighlighted = (legend: string) =>
+    isLegendHighlighted(legend, this.state.selectedLegends, this.state.activeLegend || '');
 
-  private _noLegendsHighlighted = (): boolean => {
-    return this._getHighlightedLegend().length === 0;
-  };
+  private _noLegendsHighlighted = () => noLegendHighlighted(this.state.selectedLegends, this.state.activeLegend || '');
 
   private _isChartEmpty(): boolean {
-    return !(
-      this.props.data &&
-      this.props.data.chartData &&
-      this.props.data.chartData!.filter((d: IChartDataPoint) => d.data! > 0).length > 0
-    );
+    return isChartEmpty(this.props.data, 'donut');
   }
 
   private _addDefaultColors = (donutChartDataPoint?: IChartDataPoint[]): IChartDataPoint[] => {

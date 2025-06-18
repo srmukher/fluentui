@@ -1,3 +1,4 @@
+import { useImageExport } from '../CommonComponents/imageExportUtils';
 import { FocusZone, FocusZoneDirection } from '@fluentui/react-focus';
 import { Callout, DirectionalHint } from '@fluentui/react/lib/Callout';
 import { IProcessedStyleSet, ITheme } from '@fluentui/react/lib/Styling';
@@ -27,7 +28,6 @@ import {
   ISankeyChartStyleProps,
   ISankeyChartStyles,
 } from './SankeyChart.types';
-import { toImage } from '../../utilities/image-export-utils';
 
 const getClassNames = classNamesFunction<ISankeyChartStyleProps, ISankeyChartStyles>();
 const PADDING_PERCENTAGE = 0.3;
@@ -902,9 +902,8 @@ export class SankeyChartBase extends React.Component<ISankeyChartProps, ISankeyC
     );
   }
 
-  public toImage = (opts?: IImageExportOptions): Promise<string> => {
-    return toImage(this.chartContainer, undefined, this._isRtl, opts);
-  };
+  public toImage = (opts?: IImageExportOptions): Promise<string> =>
+    useImageExport((this as any)._cartesianChartRef, (this as any)._legendsRef, getRTL())(opts);
 
   private _computeNodeAttributes(
     nodes: SNode[],

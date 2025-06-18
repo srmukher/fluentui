@@ -49,8 +49,10 @@ import {
 import { ILegend, ILegendContainer, Legends } from '../Legends/index';
 import { DirectionalHint } from '@fluentui/react/lib/Callout';
 import { IChart, IImageExportOptions } from '../../types/index';
-import { toImage } from '../../utilities/image-export-utils';
 import { ScaleLinear } from 'd3-scale';
+import { isLegendHighlighted, noLegendHighlighted } from '../CommonComponents/legendUtils';
+import { isChartEmpty } from '../CommonComponents/chartUtils';
+import { useImageExport } from '../CommonComponents/imageExportUtils';
 
 const getClassNames = classNamesFunction<IAreaChartStyleProps, IAreaChartStyles>();
 
@@ -300,9 +302,8 @@ export class AreaChartBase extends React.Component<IAreaChartProps, IAreaChartSt
     return this._cartesianChartRef.current?.chartContainer || null;
   }
 
-  public toImage = (opts?: IImageExportOptions): Promise<string> => {
-    return toImage(this._cartesianChartRef.current?.chartContainer, this._legendsRef.current?.toSVG, getRTL(), opts);
-  };
+  public toImage = (opts?: IImageExportOptions): Promise<string> =>
+    useImageExport(this._cartesianChartRef, this._legendsRef, getRTL())(opts);
 
   private _getMinMaxOfYAxis = (points: ILineChartPoints[], yAxisType: YAxisType, useSecondaryYScale: boolean) =>
     findNumericMinMaxOfY(points, yAxisType, useSecondaryYScale);
@@ -800,7 +801,7 @@ export class AreaChartBase extends React.Component<IAreaChartProps, IAreaChartSt
     if (!this._isMultiStackChart) {
       return 0.7;
     } else {
-      const opacity = this._legendHighlighted(legend) || this._noLegendHighlighted() ? 0.7 : 0.1;
+      const opacity = this._legendHighlighted(legend) || this._noLegendsHighlighted() ? 0.7 : 0.1;
       return opacity;
     }
   };
@@ -813,7 +814,7 @@ export class AreaChartBase extends React.Component<IAreaChartProps, IAreaChartSt
       if (this.state.isCalloutVisible) {
         opacity = 1;
       }
-      if (!this._noLegendHighlighted()) {
+      if (!this._noLegendsHighlighted()) {
         opacity = this._legendHighlighted(legend) ? 0 : 0.1;
       }
       return opacity;
@@ -914,7 +915,7 @@ export class AreaChartBase extends React.Component<IAreaChartProps, IAreaChartSt
               onMouseOut={this._onRectMouseOut}
               onMouseOver={this._onRectMouseMove}
               {...(this.props.optimizeLargeData && {
-                'data-is-focusable': this._legendHighlighted(points[index]!.legend) || this._noLegendHighlighted(),
+                'data-is-focusable': this._legendHighlighted(points[index]!.legend) || this._noLegendsHighlighted(),
                 role: 'img',
                 'aria-label': `${points[index].legend}, series ${index + 1} of ${points.length} with ${
                   points[index].data.length
@@ -955,7 +956,7 @@ export class AreaChartBase extends React.Component<IAreaChartProps, IAreaChartSt
                 <circle
                   key={circleId}
                   id={circleId}
-                  data-is-focusable={this._legendHighlighted(points[index]!.legend) || this._noLegendHighlighted()}
+                  data-is-focusable={this._legendHighlighted(points[index]!.legend) || this._noLegendsHighlighted()}
                   cx={xScale(singlePoint.xVal)}
                   cy={yScale(singlePoint.values[1])}
                   stroke={lineColor}
@@ -1062,7 +1063,7 @@ export class AreaChartBase extends React.Component<IAreaChartProps, IAreaChartSt
     const { isCircleClicked, nearestCircleToHighlight, activePoint } = this.state;
 
     // Show the circle if no legends are selected or if the point's legend is in the selected legends
-    if (!this._noLegendHighlighted() && !this._legendHighlighted(legend)) {
+    if (!this._noLegendsHighlighted() && !this._legendHighlighted(legend)) {
       return 0;
     }
 
@@ -1087,24 +1088,13 @@ export class AreaChartBase extends React.Component<IAreaChartProps, IAreaChartSt
    * 1. selection: if the user clicks on it
    * 2. hovering: if there is no selected legend and the user hovers over it
    */
-  private _legendHighlighted = (legend: string) => {
-    return this._getHighlightedLegend().includes(legend!);
-  };
+  private _legendHighlighted = (legend: string) =>
+    isLegendHighlighted(legend, this.state.selectedLegends, this.state.activeLegend || '');
 
   /**
    * This function checks if none of the legends is selected or hovered.
    */
-  private _noLegendHighlighted = () => {
-    return this._getHighlightedLegend().length === 0;
-  };
-
-  private _getHighlightedLegend() {
-    return this.state.selectedLegends.length > 0
-      ? this.state.selectedLegends
-      : this.state.activeLegend
-      ? [this.state.activeLegend]
-      : [];
-  }
+  private _noLegendsHighlighted = () => noLegendHighlighted(this.state.selectedLegends, this.state.activeLegend || '');
 
   private _addDefaultColors = (lineChartData?: ILineChartPoints[]): ILineChartPoints[] => {
     if (this._hasMissingXValues) {
@@ -1177,7 +1167,7 @@ export class AreaChartBase extends React.Component<IAreaChartProps, IAreaChartSt
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private _getFilteredLegendValues = (values: any) => {
-    return !this._noLegendHighlighted()
+    return !this._noLegendsHighlighted()
       ? values.filter((value: { legend: string }) => this._legendHighlighted(value.legend))
       : values;
   };
@@ -1206,17 +1196,7 @@ export class AreaChartBase extends React.Component<IAreaChartProps, IAreaChartSt
   }
 
   private _isChartEmpty(): boolean {
-    return !(
-      (
-        this.props.data &&
-        this.props.data.lineChartData &&
-        this.props.data.lineChartData.length > 0 &&
-        this.props.data.lineChartData.filter(item => item.data.length === 0).length === 0
-      )
-      // if all the data sets have no data
-      // filtering all items which have no data and checking if the length of the filtered array is 0
-      // which means chart is not empty
-    );
+    return isChartEmpty(this.props.data, 'area');
   }
 
   private _getChartTitle = (): string => {

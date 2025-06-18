@@ -1,3 +1,6 @@
+import { useImageExport } from '../CommonComponents/imageExportUtils';
+import { isChartEmpty } from '../CommonComponents/chartUtils';
+import { noLegendHighlighted } from '../CommonComponents/legendUtils';
 import * as React from 'react';
 import { max as d3Max, min as d3Min } from 'd3-array';
 import { select as d3Select } from 'd3-selection';
@@ -65,7 +68,6 @@ import {
   sortAxisCategories,
 } from '../../utilities/index';
 import { IChart, IImageExportOptions } from '../../types/index';
-import { toImage } from '../../utilities/image-export-utils';
 
 const getClassNames = classNamesFunction<IVerticalStackedBarChartStyleProps, IVerticalStackedBarChartStyles>();
 type NumericScale = D3ScaleLinear<number, number>;
@@ -307,9 +309,8 @@ export class VerticalStackedBarChartBase
     return this._cartesianChartRef.current?.chartContainer || null;
   }
 
-  public toImage = (opts?: IImageExportOptions): Promise<string> => {
-    return toImage(this._cartesianChartRef.current?.chartContainer, this._legendsRef.current?.toSVG, this._isRtl, opts);
-  };
+  public toImage = (opts?: IImageExportOptions): Promise<string> =>
+    useImageExport(this._cartesianChartRef, this._legendsRef, getRTL())(opts);
 
   /**
    * This function tells us what to focus either the whole stack as focusable item.
@@ -323,7 +324,7 @@ export class VerticalStackedBarChartBase
     const { isCalloutForStack = false } = this.props;
     let shouldFocusStackOnly: boolean = false;
     if (_isHavingLines) {
-      if (this._getHighlightedLegend().length === 1) {
+      if (this.state.selectedLegend ? [this.state.selectedLegend] : [].length === 1) {
         shouldFocusStackOnly = false;
       } else {
         shouldFocusStackOnly = true;
@@ -422,7 +423,7 @@ export class VerticalStackedBarChartBase
 
     const xScaleBandwidthTranslate = this._xAxisType !== XAxisTypes.StringAxis ? 0 : xScale.bandwidth() / 2;
     Object.keys(lineObject).forEach((item: string, index: number) => {
-      const shouldHighlight = this._isLegendHighlighted(item) || this._noLegendHighlighted(); // item is legend name
+      const shouldHighlight = this._isLegendHighlighted(item) || this._noLegendsHighlighted(); // item is legend name
       for (let i = 1; i < lineObject[item].length; i++) {
         const x1 = xScale(lineObject[item][i - 1].xItem.xAxisPoint);
         const useSecondaryYScale =
@@ -483,7 +484,7 @@ export class VerticalStackedBarChartBase
         const circleRef: { refElement: SVGCircleElement | null } = { refElement: null };
         const noBarsActive =
           circlePoint.xItem.chartData.filter(
-            dataPoint => this._noLegendHighlighted() || this._isLegendHighlighted(dataPoint.legend),
+            dataPoint => this._noLegendsHighlighted() || this._isLegendHighlighted(dataPoint.legend),
           ).length === 0;
         const yScaleBandwidthTranslate =
           !circlePoint.useSecondaryYScale && this._yAxisType === YAxisType.StringAxis
@@ -510,7 +511,7 @@ export class VerticalStackedBarChartBase
             opacity={this._getCircleOpacityAndRadius(circlePoint.xItem.xAxisPoint, circlePoint.legend).opacity}
             transform={`translate(${xScaleBandwidthTranslate}, ${yScaleBandwidthTranslate})`}
             ref={e => (circleRef.refElement = e)}
-            {...(noBarsActive && (this._noLegendHighlighted() || this._isLegendHighlighted(item))
+            {...(noBarsActive && (this._noLegendsHighlighted() || this._isLegendHighlighted(item))
               ? {
                   'data-is-focusable': !this.props.hideTooltip,
                   onFocus: this._lineFocus.bind(this, circlePoint, circleRef),
@@ -537,7 +538,7 @@ export class VerticalStackedBarChartBase
     legend: string,
   ): { opacity: number; radius: number } => {
     const { activeXAxisDataPoint } = this.state;
-    if (!this._noLegendHighlighted()) {
+    if (!this._noLegendsHighlighted()) {
       if (xAxisPoint === activeXAxisDataPoint && this._isLegendHighlighted(legend)) {
         return { opacity: 1, radius: 8 };
       } else if (this._isLegendHighlighted(legend)) {
@@ -722,14 +723,6 @@ export class VerticalStackedBarChartBase
     }
   }
 
-  private _getHighlightedLegend() {
-    return this.state.selectedLegends.length > 0
-      ? this.state.selectedLegends
-      : this.state.activeLegend
-      ? [this.state.activeLegend]
-      : [];
-  }
-
   private _onRectHover(
     xAxisPoint: string,
     point: IVSChartDataPoint,
@@ -766,7 +759,7 @@ export class VerticalStackedBarChartBase
          * Show the callout if highlighted bar is focused/hovered
          * and Hide it if unhighlighted bar is focused/hovered
          */
-        isCalloutVisible: this._noLegendHighlighted() || this._isLegendHighlighted(point.legend),
+        isCalloutVisible: this._noLegendsHighlighted() || this._isLegendHighlighted(point.legend),
         calloutLegend: point.legend,
         dataForHoverCard: point.data,
         color,
@@ -790,8 +783,8 @@ export class VerticalStackedBarChartBase
   };
 
   private _lineHoverFocus = (lineData: LinePoint, refSelected: React.MouseEvent<SVGElement> | SVGCircleElement) => {
-    if (this._getHighlightedLegend().length === 1) {
-      if (this._noLegendHighlighted() || this._isLegendHighlighted(lineData.legend)) {
+    if (this.state.selectedLegend ? [this.state.selectedLegend] : [].length === 1) {
+      if (this._noLegendsHighlighted() || this._isLegendHighlighted(lineData.legend)) {
         this.setState({
           refSelected,
           isCalloutVisible: true,
@@ -815,7 +808,7 @@ export class VerticalStackedBarChartBase
     stack: IVerticalStackedChartProps,
     refSelected: React.MouseEvent<SVGElement> | SVGGElement,
   ): void {
-    if (!this._noLegendHighlighted()) {
+    if (!this._noLegendsHighlighted()) {
       stack = {
         ...stack,
         chartData: stack.chartData.filter(dataPoint => this._isLegendHighlighted(dataPoint.legend)),
@@ -998,7 +991,7 @@ export class VerticalStackedBarChartBase
 
         const ref: IRefArrayData = {};
 
-        const shouldHighlight = this._isLegendHighlighted(point.legend) || this._noLegendHighlighted() ? true : false;
+        const shouldHighlight = this._isLegendHighlighted(point.legend) || this._noLegendsHighlighted() ? true : false;
         this._classNames = getClassNames(this.props.styles!, {
           theme: this.props.theme!,
           shouldHighlight,
@@ -1113,7 +1106,7 @@ export class VerticalStackedBarChartBase
       const groupRef: IRefArrayData = {};
       const someBarsActive =
         singleChartData.chartData.filter(
-          dataPoint => this._noLegendHighlighted() || this._isLegendHighlighted(dataPoint.legend),
+          dataPoint => this._noLegendsHighlighted() || this._isLegendHighlighted(dataPoint.legend),
         ).length > 0;
       // FIXME: Making the entire stack focusable when stack callout is enabled adds unnecessary complexity
       // and can reduce usability in certain scenarios. Instead, each individual element within the stack
@@ -1133,7 +1126,7 @@ export class VerticalStackedBarChartBase
       let showLabel = false;
       let barLabel = 0;
       if (!this.props.hideLabels && this._yAxisType !== YAxisType.StringAxis) {
-        if (this._noLegendHighlighted()) {
+        if (this._noLegendsHighlighted()) {
           showLabel = true;
           barLabel = barTotalValue;
         } else {
@@ -1278,15 +1271,13 @@ export class VerticalStackedBarChartBase
    * 2. hovering: if there is no selected legend and the user hovers over it
    */
   private _isLegendHighlighted = (legendTitle: string): boolean => {
-    return this._getHighlightedLegend().includes(legendTitle);
+    return (this.state.selectedLegend ? [this.state.selectedLegend] : []).includes(legendTitle);
   };
 
   /**
    * This function checks if none of the legends is selected or hovered.
    */
-  private _noLegendHighlighted = () => {
-    return this._getHighlightedLegend().length === 0;
-  };
+  private _noLegendsHighlighted = () => noLegendHighlighted(this.state.selectedLegends, this.state.activeLegend || '');
 
   private _getAriaLabel = (
     singleChartData: IVerticalStackedChartProps,
@@ -1304,7 +1295,7 @@ export class VerticalStackedBarChartBase
         .map(pt => {
           const legend = pt.legend;
           const yValue = pt.yAxisCalloutData || pt.data;
-          return this._noLegendHighlighted() || this._isLegendHighlighted(legend) ? `${legend}, ${yValue}.` : '';
+          return this._noLegendsHighlighted() || this._isLegendHighlighted(legend) ? `${legend}, ${yValue}.` : '';
         })
         .filter(str => str !== '')
         .join(' ');
@@ -1312,7 +1303,7 @@ export class VerticalStackedBarChartBase
         ?.map(ln => {
           const legend = ln.legend;
           const yValue = ln.yAxisCalloutData || ln.data || ln.y;
-          return this._noLegendHighlighted() || this._isLegendHighlighted(legend) ? `${legend}, ${yValue}.` : '';
+          return this._noLegendsHighlighted() || this._isLegendHighlighted(legend) ? `${legend}, ${yValue}.` : '';
         })
         .filter(str => str !== '')
         .join(' ');
@@ -1398,11 +1389,7 @@ export class VerticalStackedBarChartBase
   };
 
   private _isChartEmpty(): boolean {
-    return !(
-      this.props.data &&
-      this.props.data.length > 0 &&
-      this.props.data.some(item => item.chartData.length > 0 || (item.lineData && item.lineData.length > 0))
-    );
+    return isChartEmpty(this.props.data, 'verticalStackedBar');
   }
 
   private _getChartTitle = (): string => {

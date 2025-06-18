@@ -1,3 +1,4 @@
+import { isChartEmpty } from '../CommonComponents/chartUtils';
 import * as React from 'react';
 import { classNamesFunction, getId } from '@fluentui/react/lib/Utilities';
 import { IPieChartProps, IPieChartStyleProps, IPieChartStyles } from './PieChart.types';
@@ -69,6 +70,6 @@ export class PieChartBase extends React.Component<IPieChartProps, {}> {
   }
 
   private _isChartEmpty(): boolean {
-    return !(this.props.data && this.props.data.length > 0 && this.props.data.filter(item => item.y > 0).length > 0);
+    return isChartEmpty(this.props.data, 'pie');
   }
 }

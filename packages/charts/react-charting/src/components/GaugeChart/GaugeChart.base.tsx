@@ -1,3 +1,5 @@
+import { useImageExport } from '../CommonComponents/imageExportUtils';
+import { isLegendHighlighted, noLegendHighlighted } from '../CommonComponents/legendUtils';
 import * as React from 'react';
 import { arc as d3Arc } from 'd3-shape';
 import { classNamesFunction, getId, getRTL, initializeComponentRef } from '@fluentui/react/lib/Utilities';
@@ -28,7 +30,6 @@ import { IYValueHover } from '../../index';
 import { SVGTooltipText } from '../../utilities/SVGTooltipText';
 import { select as d3Select } from 'd3-selection';
 import { IChart, IImageExportOptions } from '../../types/index';
-import { toImage } from '../../utilities/image-export-utils';
 
 const GAUGE_MARGIN = 16;
 const LABEL_WIDTH = 36;
@@ -262,7 +263,7 @@ export class GaugeChartBase extends React.Component<IGaugeChartProps, IGaugeChar
                       ${segment.gradient?.[0]},
                       ${segment.gradient?.[1]} ${arc.endAngle - arc.startAngle}rad
                     )`,
-                  opacity: this._legendHighlighted(segment.legend) || this._noLegendHighlighted() ? 1 : 0.1,
+                  opacity: this._legendHighlighted(segment.legend) || this._noLegendsHighlighted() ? 1 : 0.1,
                 });
 
                 return (
@@ -283,7 +284,7 @@ export class GaugeChartBase extends React.Component<IGaugeChartProps, IGaugeChar
                       onBlur={this._handleBlur}
                       onMouseEnter={e => this._handleMouseOver(e, segment.legend)}
                       onMouseMove={e => this._handleMouseOver(e, segment.legend)}
-                      data-is-focusable={this._legendHighlighted(segment.legend) || this._noLegendHighlighted()}
+                      data-is-focusable={this._legendHighlighted(segment.legend) || this._noLegendsHighlighted()}
                     />
 
                     {this.props.enableGradient && (
@@ -362,10 +363,8 @@ export class GaugeChartBase extends React.Component<IGaugeChartProps, IGaugeChar
   public get chartContainer(): HTMLElement | null {
     return this._rootElem;
   }
-
-  public toImage = (opts?: IImageExportOptions): Promise<string> => {
-    return toImage(this._rootElem, this._legendsRef.current?.toSVG, this._isRTL, opts);
-  };
+  public toImage = (opts?: IImageExportOptions): Promise<string> =>
+    useImageExport({ current: this._rootElem }, this._legendsRef, getRTL())(opts);
 
   private _getMargins = () => {
     const { hideMinMax, chartTitle, sublabel } = this.props;
@@ -548,24 +547,13 @@ export class GaugeChartBase extends React.Component<IGaugeChartProps, IGaugeChar
    * 1. selection: if the user clicks on it
    * 2. hovering: if there is no selected legend and the user hovers over it
    */
-  private _legendHighlighted = (legend: string) => {
-    return this._getHighlightedLegend().includes(legend!);
-  };
+  private _legendHighlighted = (legend: string) =>
+    isLegendHighlighted(legend, this.state.selectedLegends, this.state.hoveredLegend || '');
 
   /**
    * This function checks if none of the legends is selected or hovered.
    */
-  private _noLegendHighlighted = () => {
-    return this._getHighlightedLegend().length === 0;
-  };
-
-  private _getHighlightedLegend() {
-    return this.state.selectedLegends.length > 0
-      ? this.state.selectedLegends
-      : this.state.hoveredLegend
-      ? [this.state.hoveredLegend]
-      : [];
-  }
+  private _noLegendsHighlighted = () => noLegendHighlighted(this.state.selectedLegends, this.state.hoveredLegend || '');
 
   private _handleFocus = (focusEvent: React.FocusEvent<SVGElement>, focusedElement: string) => {
     this._showCallout(focusEvent.target, focusedElement, true);
@@ -609,7 +597,7 @@ export class GaugeChartBase extends React.Component<IGaugeChartProps, IGaugeChar
       calloutTarget: target,
       /** Show the callout if highlighted arc is hovered/focused and Hide it if unhighlighted arc is hovered/focused */
       isCalloutVisible:
-        ['Needle', 'Chart value'].includes(legend) || this._noLegendHighlighted() || this._legendHighlighted(legend),
+        ['Needle', 'Chart value'].includes(legend) || this._noLegendsHighlighted() || this._legendHighlighted(legend),
       hoverXValue,
       hoverYValues,
       ...(isFocusEvent ? { focusedElement: legend } : {}),
