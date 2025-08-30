@@ -1,5 +1,31 @@
 {
   "version": "2.0.0",
+  "inputs": [
+    {
+      "id": "workbookPath",
+      "type": "promptString",
+      "description": "Path to source CSV/XLSX workbook",
+      "default": "C:/Users/srmukher/OneDrive - Microsoft/Charting/Feedback_analysis/Work/Analysis_output/ocv_analysis_output_30_07_25/ocv_summary.csv"
+    },
+    {
+      "id": "sessionsRoot",
+      "type": "promptString",
+      "description": "Path to session root containing per-issue folders",
+      "default": "C:/Users/srmukher/OneDrive - Microsoft/Charting/Feedback_analysis/Work/Analysis_output/ocv_analysis_output_30_07_25/session_2025-07-30"
+    },
+    {
+      "id": "workbookPathLocal",
+      "type": "promptString",
+      "description": "Local path (workspace/container) to CSV/XLSX workbook",
+      "default": "${workspaceFolder}/tools/ocv_excel/ocv_analysis_output_30_07_25/ocv_summary.xlsx"
+    },
+    {
+      "id": "sessionsRootLocal",
+      "type": "promptString",
+      "description": "Local sessions root containing per-issue folders",
+      "default": "${workspaceFolder}/tools/ocv_excel/ocv_analysis_output_30_07_25/session_2025-07-30"
+    }
+  ],
   "tasks": [
     {
       "label": "Typescript (oufr) watch",
@@ -11,6 +37,37 @@
         "kind": "build",
         "isDefault": true
       }
+    },
+    {
+      "label": "OCV: Build Summary (All issues in session)",
+      "type": "shell",
+      "options": {
+        "cwd": "${workspaceFolder}/tools/ocv_excel"
+      },
+      "command": "python3",
+      "args": [
+        "run_summary.py",
+        "--workbook",
+        "${input:workbookPathLocal}",
+        "--sessions-root",
+        "${input:sessionsRootLocal}"
+      ],
+      "windows": {
+        "command": "py",
+        "args": [
+          "-3",
+          "run_summary.py",
+          "--workbook",
+          "${input:workbookPathLocal}",
+          "--sessions-root",
+          "${input:sessionsRootLocal}"
+        ]
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared"
+      },
+      "problemMatcher": []
     },
     {
       "label": "Typescript (vr-tests) watch",
@@ -50,6 +107,72 @@
         "kind": "build",
         "isDefault": true
       }
+    },
+    {
+      "label": "OCV: Build Summary (Windows host)",
+      "type": "shell",
+      "options": {
+        "cwd": "${workspaceFolder}/tools/ocv_excel"
+      },
+      "command": "bash",
+      "args": [
+        "-lc",
+        "printf \"%s\\n\" \"This task is intended for Windows host paths. Use \\\"OCV: Build Summary (Local)\\\" on Linux/macOS.\"; exit 1"
+      ],
+      "windows": {
+        "command": "py",
+        "args": [
+          "-3",
+          "run_summary.py",
+          "--workbook",
+          "${input:workbookPath}",
+          "--sessions-root",
+          "${input:sessionsRoot}"
+        ]
+      },
+      "osx": {
+        "command": "bash",
+        "args": [
+          "-lc",
+          "printf \"%s\\n\" \"This task is intended for Windows host paths. Use \\\"OCV: Build Summary (Local)\\\" on Linux/macOS.\"; exit 1"
+        ]
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "OCV: Build Summary (Local)",
+      "type": "shell",
+      "options": {
+        "cwd": "${workspaceFolder}/tools/ocv_excel"
+      },
+      "command": "python3",
+      "args": [
+        "run_summary.py",
+        "--workbook",
+        "${input:workbookPathLocal}",
+        "--sessions-root",
+        "${input:sessionsRootLocal}"
+      ],
+      "windows": {
+        "command": "py",
+        "args": [
+          "-3",
+          "run_summary.py",
+          "--workbook",
+          "${input:workbookPathLocal}",
+          "--sessions-root",
+          "${input:sessionsRootLocal}"
+        ]
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared"
+      },
+      "problemMatcher": []
     }
   ]
 }

@@ -144,4 +144,14 @@ export { DeclarativeChart } from './DeclarativeChart';
 export type { IResponsiveContainerProps, IResponsiveChildProps } from './ResponsiveContainer';
 export { ResponsiveContainer, withResponsiveContainer } from './ResponsiveContainer';
 
+export type {
+  ISunburstNode,
+  ISunburstFlatData,
+  ISunburstChartData,
+  ISunburstChartProps,
+  ISunburstChartStyleProps,
+  ISunburstChartStyles,
+} from './components/SunburstChart';
+export { SunburstChart } from './components/SunburstChart';
+
 import './version';
