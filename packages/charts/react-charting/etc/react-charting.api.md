@@ -1476,6 +1476,127 @@ export interface IStackedBarChartStyles {
 }
 
 // @public (undocumented)
+export interface ISunburstChartData {
+    // (undocumented)
+    chartTitle?: string;
+    // (undocumented)
+    flat?: ISunburstFlatData;
+    // (undocumented)
+    root?: ISunburstNode;
+}
+
+// @public (undocumented)
+export interface ISunburstChartProps {
+    // Warning: (ae-forgotten-export) The symbol "BranchValues" needs to be exported by the entry point index.d.ts
+    //
+    // (undocumented)
+    branchValues?: BranchValues;
+    // (undocumented)
+    calloutProps?: Partial<ICalloutProps>;
+    // (undocumented)
+    className?: string;
+    // (undocumented)
+    colorMode?: 'distinct' | 'parent' | 'sequential';
+    // (undocumented)
+    componentRef?: IRefObject<IChart>;
+    // (undocumented)
+    culture?: string;
+    // (undocumented)
+    data: ISunburstChartData;
+    // (undocumented)
+    enableGradient?: boolean;
+    // (undocumented)
+    endAngle?: number;
+    // (undocumented)
+    height?: number;
+    // (undocumented)
+    hideLabels?: boolean;
+    // (undocumented)
+    innerRadius?: number;
+    // (undocumented)
+    legendProps?: Partial<ILegendsProps>;
+    // (undocumented)
+    levelThickness?: number | ((level: number) => number);
+    // (undocumented)
+    maxDepth?: number;
+    // (undocumented)
+    onRenderCalloutPerDataPoint?: IRenderFunction<IChartDataPoint>;
+    // (undocumented)
+    padAngle?: number;
+    // (undocumented)
+    roundCorners?: boolean;
+    // (undocumented)
+    showLabelsInPercent?: boolean;
+    // (undocumented)
+    sort?: 'none' | 'asc' | 'desc' | ((a: ISunburstNode, b: ISunburstNode, depth: number) => number);
+    // (undocumented)
+    startAngle?: number;
+    styles?: IStyleFunctionOrObject<ISunburstChartStyleProps, ISunburstChartStyles>;
+    // (undocumented)
+    theme?: ITheme;
+    // (undocumented)
+    useUTC?: boolean;
+    // (undocumented)
+    width?: number;
+}
+
+// @public (undocumented)
+export interface ISunburstChartStyleProps {
+    // (undocumented)
+    className?: string;
+    // (undocumented)
+    height: number;
+    // (undocumented)
+    theme: ITheme;
+    // (undocumented)
+    width: number;
+}
+
+// @public (undocumented)
+export interface ISunburstChartStyles {
+    // (undocumented)
+    chart: IStyle;
+    // (undocumented)
+    legendContainer: IStyle;
+    // (undocumented)
+    root: IStyle;
+}
+
+// @public (undocumented)
+export interface ISunburstFlatData {
+    // (undocumented)
+    ids: string[];
+    // (undocumented)
+    labels: string[];
+    // (undocumented)
+    parents: Array<string | null | ''>;
+    // (undocumented)
+    values: number[];
+}
+
+// @public (undocumented)
+export interface ISunburstNode {
+    // (undocumented)
+    callOutAccessibilityData?: IAccessibilityProps;
+    // (undocumented)
+    children?: ISunburstNode[];
+    // (undocumented)
+    color?: string;
+    // (undocumented)
+    id: string;
+    // (undocumented)
+    label: string;
+    // (undocumented)
+    onClick?: () => void;
+    // (undocumented)
+    value?: number;
+    // (undocumented)
+    xAxisCalloutData?: string;
+    // (undocumented)
+    yAxisCalloutData?: string;
+}
+
+// @public (undocumented)
 export interface ITreeChartDataPoint {
     bodytext?: string;
     children?: Array<ITreeChartDataPoint>;
@@ -1762,6 +1883,9 @@ export const Sparkline: React_2.FunctionComponent<ISparklineProps>;
 
 // @public
 export const StackedBarChart: React_2.FunctionComponent<IStackedBarChartProps>;
+
+// @public (undocumented)
+export const SunburstChart: React_2.FunctionComponent<ISunburstChartProps>;
 
 // Warning: (ae-forgotten-export) The symbol "ITextboxProps" needs to be exported by the entry point index.d.ts
 //

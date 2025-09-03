@@ -52,6 +52,7 @@ const options: IDropdownOption[] = [
   { key: 'verticalbarchart', text: 'VerticalBar Chart' },
   { key: 'verticalbar_histogramchart', text: 'VerticalBar Histogram Chart' },
   { key: 'chart_table', text: 'Chart Table' },
+  { key: 'sunburst', text: 'Sunburst Chart' },
 ];
 
 const colorOptions: IDropdownOption[] = [
@@ -72,6 +73,7 @@ const schemas: any[] = [
   { key: 'verticalbarchart', schema: require('./schema/fluent_verticalbar.json') },
   { key: 'verticalbar_histogramchart', schema: require('./schema/fluent_verticalbar_histogram.json') },
   { key: 'chart_table', schema: require('./schema/fluent_table.json') },
+  { key: 'sunburst', schema: require('./schema/fluent_sunburst.json') },
 ];
 
 const dropdownStyles = { dropdown: { width: 200 } };

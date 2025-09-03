@@ -285,6 +285,30 @@ const DATA_VALIDATORS_MAP: Record<string, ((data: Data) => void)[]> = {
       }
     },
   ],
+  sunburst: [
+    data => {
+      const d = data as Partial<PlotData> & {
+        ids?: Array<string>;
+        labels?: Array<string>;
+        parents?: Array<string | null>;
+        values?: Array<number> | { bdata?: number[]; dtype?: string };
+      };
+      const hasIds = Array.isArray(d.ids);
+      const hasLabels = Array.isArray(d.labels);
+      const hasParents = Array.isArray(d.parents);
+      const hasValues = Array.isArray(d.values as any) || (!!d.values && typeof d.values === 'object');
+      if (!(hasIds && hasLabels && hasParents && hasValues)) {
+        throw new Error(`${UNSUPPORTED_MSG_PREFIX} ${data.type}, Invalid or missing ids/labels/parents/values`);
+      }
+      const n = (d.ids as string[]).length;
+      if (!((d.labels as string[]).length === n && (d.parents as any[]).length === n)) {
+        throw new Error(`${UNSUPPORTED_MSG_PREFIX} ${data.type}, Array length mismatch`);
+      }
+      if (Array.isArray(d.values) && (d.values as number[]).length !== n) {
+        throw new Error(`${UNSUPPORTED_MSG_PREFIX} ${data.type}, Array length mismatch`);
+      }
+    },
+  ],
 };
 
 const DEFAULT_CHART_TYPE = '';
@@ -344,6 +368,8 @@ export const mapFluentChart = (input: any): OutputChartType => {
     switch (firstData.type) {
       case 'pie':
         return { isValid: true, type: 'donut', validTracesInfo: validTraces };
+      case 'sunburst':
+        return { isValid: true, type: 'sunburst', validTracesInfo: validTraces };
       case 'histogram2d':
       case 'heatmap':
         return { isValid: true, type: 'heatmap', validTracesInfo: validTraces };

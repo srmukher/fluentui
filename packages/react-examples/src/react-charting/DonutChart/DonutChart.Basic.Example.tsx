@@ -1,16 +1,7 @@
 import * as React from 'react';
-import {
-  DonutChart,
-  IDonutChartProps,
-  IChartProps,
-  IChartDataPoint,
-  DataVizPalette,
-  getColorFromToken,
-  getGradientFromToken,
-  DataVizGradientPalette,
-} from '@fluentui/react-charting';
+import { IDonutChartProps } from '@fluentui/react-charting';
 import { Toggle } from '@fluentui/react/lib/Toggle';
-import { Sunburst } from '@fluentui/react-charting/lib/components/DonutChart/Sunburst';
+import { SunburstChart as Sunburst } from '@fluentui/react-charting';
 
 interface IDonutChartState {
   enableGradient: boolean;
@@ -24,99 +15,28 @@ export class DonutChartBasicExample extends React.Component<IDonutChartProps, ID
     this.state = {
       enableGradient: false,
       roundCorners: false,
-      legendMultiSelect: false,
+      legendMultiSelect: true,
     };
   }
 
   public render(): JSX.Element {
-    const points: IChartDataPoint[] = [
-      {
-        legend: 'first',
-        data: 20000,
-        color: getColorFromToken(DataVizPalette.color1),
-        gradient: getGradientFromToken(DataVizGradientPalette.gradient1),
-        xAxisCalloutData: '2020/04/30',
-      },
-      {
-        legend: 'second',
-        data: 39000,
-        color: getColorFromToken(DataVizPalette.color2),
-        gradient: getGradientFromToken(DataVizGradientPalette.gradient2),
-        xAxisCalloutData: '2020/04/20',
-      },
-      {
-        legend: 'third',
-        data: 12000,
-        color: getColorFromToken(DataVizPalette.color3),
-        gradient: getGradientFromToken(DataVizGradientPalette.gradient2),
-        xAxisCalloutData: '2020/04/20',
-      },
-      {
-        legend: 'fourth',
-        data: 2000,
-        color: getColorFromToken(DataVizPalette.color4),
-        gradient: getGradientFromToken(DataVizGradientPalette.gradient2),
-        xAxisCalloutData: '2020/04/20',
-      },
-      {
-        legend: 'fifth',
-        data: 5000,
-        color: getColorFromToken(DataVizPalette.color5),
-        gradient: getGradientFromToken(DataVizGradientPalette.gradient2),
-        xAxisCalloutData: '2020/04/20',
-      },
-      {
-        legend: 'sixth',
-        data: 6000,
-        color: getColorFromToken(DataVizPalette.color6),
-        gradient: getGradientFromToken(DataVizGradientPalette.gradient2),
-        xAxisCalloutData: '2020/04/20',
-      },
-      {
-        legend: 'seventh',
-        data: 7000,
-        color: getColorFromToken(DataVizPalette.color7),
-        gradient: getGradientFromToken(DataVizGradientPalette.gradient2),
-        xAxisCalloutData: '2020/04/20',
-      },
-      {
-        legend: 'eighth',
-        data: 8000,
-        color: getColorFromToken(DataVizPalette.color8),
-        gradient: getGradientFromToken(DataVizGradientPalette.gradient2),
-        xAxisCalloutData: '2020/04/20',
-      },
-      {
-        legend: 'ninth',
-        data: 9000,
-        color: getColorFromToken(DataVizPalette.color9),
-        gradient: getGradientFromToken(DataVizGradientPalette.gradient2),
-        xAxisCalloutData: '2020/04/20',
-      },
-      {
-        legend: 'tenth',
-        data: 10000,
-        color: getColorFromToken(DataVizPalette.color10),
-        gradient: getGradientFromToken(DataVizGradientPalette.gradient2),
-        xAxisCalloutData: '2020/04/20',
-      },
-    ];
-
-    const data: IChartProps = {
-      chartTitle: 'Donut chart basic example',
-      chartData: points,
+    // Complete sunburst (Eve root -> Seth, Cain, Awan, Abel, Azura; Seth->Enos/Noam, Awan->Enoch)
+    const sunburstFlatComplete = {
+      type: 'sunburst',
+      ids: ['Fruits', 'Vegetables', 'Fruits/Apple', 'Fruits/Banana', 'Vegetables/Carrot', 'Vegetables/Leafy'],
+      labels: ['Fruits', 'Vegetables', 'Apple', 'Banana', 'Carrot', 'Leafy'],
+      parents: ['', '', 'Fruits', 'Fruits', 'Vegetables', 'Vegetables'],
+      values: [60, 40, 35, 25, 15, 25], // parents are totals; children sum to parent
+      branchvalues: 'total',
+      textinfo: 'label+value',
     };
 
-    const sunburstData = {
-      branchvalues: 'total',
-      domain: {
-        x: [0.0, 1.0],
-        y: [0.0, 1.0],
-      },
-      ids: ['A/A1', 'A/A2', 'B/B1', 'B/B2', 'C/C1', 'C/C2', 'C/C3', 'A', 'B', 'C'],
-      labels: ['A1', 'A2', 'B1', 'B2', 'C1', 'C2', 'C3', 'A', 'B', 'C'],
-      parents: ['A', 'A', 'B', 'B', 'C', 'C', 'C', '', '', ''],
-      values: [10, 20, 15, 25, 5, 10, 15, 30, 40, 30],
+    // Sunburst with empty (zero-value) segments (e.g., Noam and Abel are zero)
+    const sunburstFlatWithEmpty = {
+      ids: ['Seth/Enos', 'Seth/Noam', 'Awan/Enoch', 'Seth', 'Cain', 'Awan', 'Abel', 'Azura', 'Eve'],
+      labels: ['Enos', 'Noam', 'Enoch', 'Seth', 'Cain', 'Awan', 'Abel', 'Azura', 'Eve'],
+      parents: ['Seth', 'Seth', 'Awan', 'Eve', 'Eve', 'Eve', 'Eve', 'Eve', ''],
+      values: [28, 0, 12, 28, 20, 12, 0, 6, 0],
     };
 
     return (
@@ -147,7 +67,30 @@ export class DonutChartBasicExample extends React.Component<IDonutChartProps, ID
           />
         </div>
 
-        <Sunburst data={sunburstData} />
+        <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap', marginTop: 8 }}>
+          <div style={{ width: 420, height: 420 }}>
+            <Sunburst
+              data={{ flat: sunburstFlatComplete, chartTitle: 'Eve family (complete)' }}
+              branchValues="total"
+              enableGradient={this.state.enableGradient}
+              roundCorners={this.state.roundCorners}
+              legendProps={{ canSelectMultipleLegends: this.state.legendMultiSelect }}
+              width={400}
+              height={400}
+            />
+          </div>
+          <div style={{ width: 420, height: 420 }}>
+            <Sunburst
+              data={{ flat: sunburstFlatWithEmpty, chartTitle: 'Eve family (with empties)' }}
+              branchValues="total"
+              enableGradient={this.state.enableGradient}
+              roundCorners={this.state.roundCorners}
+              legendProps={{ canSelectMultipleLegends: this.state.legendMultiSelect }}
+              width={400}
+              height={400}
+            />
+          </div>
+        </div>
       </>
     );
   }

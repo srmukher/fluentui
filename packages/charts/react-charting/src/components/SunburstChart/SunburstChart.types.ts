@@ -1,7 +1,7 @@
 import { IStyle, ITheme } from '@fluentui/react/lib/Styling';
 import { IRefObject, IRenderFunction, IStyleFunctionOrObject } from '@fluentui/react/lib/Utilities';
 import { ICalloutProps } from '@fluentui/react/lib/Callout';
-import { ILegendsProps } from '../Legends';
+import { ILegendsProps } from '../Legends/index';
 import { IAccessibilityProps, IChart, IChartDataPoint } from '../../types/index';
 
 export interface ISunburstNode {
@@ -56,7 +56,8 @@ export interface ISunburstChartProps {
   enableGradient?: boolean;
   roundCorners?: boolean;
 
-  legendProps?: ILegendsProps;
+  // Align with other charts: allow passing only the props you need
+  legendProps?: Partial<ILegendsProps>;
 
   onRenderCalloutPerDataPoint?: IRenderFunction<IChartDataPoint>;
   calloutProps?: Partial<ICalloutProps>;

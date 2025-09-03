@@ -64,7 +64,9 @@ import {
 import { timeParse } from 'd3-time-format';
 import { curveCardinal as d3CurveCardinal } from 'd3-shape';
 import type { ColorwayType } from './PlotlyColorAdapter';
+import { getSchemaColors } from './PlotlyColorAdapter';
 import { extractColor, resolveColor } from './PlotlyColorAdapter';
+import { ISunburstChartProps, ISunburstFlatData, ISunburstNode } from '../SunburstChart/index';
 
 interface ISecondaryYAxisValues {
   secondaryYAxistitle?: string;
@@ -328,6 +330,265 @@ export const transformPlotlyJsonToDonutProps = (
   };
 };
 
+export const transformPlotlyJsonToSunburstProps = (
+  input: PlotlySchema,
+  colorMap: React.MutableRefObject<Map<string, string>>,
+  colorwayType: ColorwayType,
+  isDarkTheme?: boolean,
+): ISunburstChartProps => {
+  const first = input.data[0] as Partial<PlotData> & {
+    ids?: string[];
+    labels?: string[];
+    parents?: Array<string | null>;
+    values?: number[];
+    branchvalues?: 'total' | 'remainder';
+    marker?: { colors?: (string | number)[] };
+  };
+
+  const flat: ISunburstFlatData = {
+    ids: first.ids ?? [],
+    labels: first.labels ?? [],
+    parents: (first.parents as Array<string | null | ''>) ?? [],
+    values: first.values ?? [],
+  };
+
+  // Use marker.colors when provided to keep label-color association regardless of sorting.
+  // However, if all marker.colors are the same, treat as if not provided to use colorway instead.
+  const rawMarkerColors = Array.isArray(first.marker?.colors)
+    ? (first.marker!.colors as (string | number)[]).map(c => String(c))
+    : undefined;
+
+  // Check if all marker colors are the same (uniform) - if so, ignore them and use colorway
+  const areMarkerColorsUniform =
+    rawMarkerColors && rawMarkerColors.length > 1 && rawMarkerColors.every(color => color === rawMarkerColors[0]);
+
+  const effectiveMarkerColors = areMarkerColorsUniform ? undefined : rawMarkerColors;
+
+  // Fallback: use layout.sunburstcolorway (or template colorway) when marker.colors is not provided.
+  // For sunburst charts, preserve original Plotly colors to match Plotly.js exactly
+  const templateColorway: string[] | undefined =
+    (input.layout as any)?.sunburstcolorway ?? input.layout?.template?.layout?.colorway;
+
+  // Check if this is the default Plotly colorway and preserve it exactly
+  const defaultPlotlyColorway = [
+    '#636efa',
+    '#ef553b',
+    '#00cc96',
+    '#ab63fa',
+    '#ffa15a',
+    '#19d3f3',
+    '#ff6692',
+    '#b6e880',
+    '#ff97ff',
+    '#fecb52',
+  ];
+
+  const isPlotlyColorway =
+    Array.isArray(templateColorway) &&
+    templateColorway.length === defaultPlotlyColorway.length &&
+    templateColorway.every((color, index) => color.toLowerCase() === defaultPlotlyColorway[index].toLowerCase());
+
+  // Use original Plotly colors if detected, otherwise use mapped colors
+  const mappedColorway = Array.isArray(templateColorway)
+    ? isPlotlyColorway
+      ? templateColorway
+      : (getSchemaColors(templateColorway, templateColorway, colorMap, isDarkTheme) as string[] | undefined)
+    : undefined;
+
+  // Build a minimal tree and (if marker.colors exists) stamp colors on legend-level nodes so descendants inherit.
+  // We only attach color on nodes whose parent is falsy (roots) when multiple roots, or children of a single root.
+  const buildColorStampedRoot = (): ISunburstNode | undefined => {
+    if (!flat.ids.length) {
+      return undefined;
+    }
+    // Create map for quick lookup
+    const map: Record<string, ISunburstNode & { parent?: string | null }> = {};
+    flat.ids.forEach((id, i) => {
+      map[id] = map[id] || { id, label: flat.labels[i], value: flat.values[i], children: [] };
+    });
+    flat.ids.forEach((id, i) => {
+      const parent = flat.parents[i];
+      if (!parent) {
+        return;
+      }
+      if (!map[parent]) {
+        map[parent] = { id: parent, label: String(parent), value: 0, children: [] };
+      }
+      map[parent].children = map[parent].children || [];
+      map[parent].children!.push(map[id]);
+    });
+    // Determine visible legend ring depth
+    const rootCandidates: ISunburstNode[] = [];
+    flat.ids.forEach((id, i) => {
+      const parent = flat.parents[i];
+      if (!parent) {
+        rootCandidates.push(map[id]);
+      }
+    });
+    let legendNodes: ISunburstNode[] = [];
+    if (rootCandidates.length === 1) {
+      legendNodes = (map[rootCandidates[0].id].children ?? []) as ISunburstNode[];
+    } else {
+      legendNodes = rootCandidates;
+    }
+
+    // Helper to roll up values for a node (sum of descendants) for sorting
+    const rollup = (n: ISunburstNode): number => {
+      if (!n.children || n.children.length === 0) {
+        return n.value || 0;
+      }
+      let sum = n.value || 0;
+      for (const c of n.children) {
+        sum += rollup(c);
+      }
+      return sum;
+    };
+
+    // If marker.colors are provided, attach the color that belongs to each legend-level id by scanning ids/parents.
+    // Do this BEFORE sorting to maintain id-to-color correspondence
+    if (effectiveMarkerColors) {
+      const ids = first.ids ?? [];
+      const parents = (first.parents as Array<string | null | ''>) ?? [];
+      for (let i = 0; i < legendNodes.length; i++) {
+        const ln = legendNodes[i];
+        let colorForLegend: string | undefined;
+        // Preferred: find exact id match
+        const exactIdx = ids.indexOf(ln.id);
+        if (exactIdx >= 0 && effectiveMarkerColors[exactIdx]) {
+          colorForLegend = effectiveMarkerColors[exactIdx];
+        }
+        // Fallback: find first child whose parent equals this legend id
+        if (!colorForLegend) {
+          for (let j = 0; j < ids.length; j++) {
+            if (parents[j] === ln.id && effectiveMarkerColors[j]) {
+              colorForLegend = effectiveMarkerColors[j];
+              break;
+            }
+          }
+        }
+        // Last resort: heuristic match by path prefix "LegendId/..."
+        if (!colorForLegend) {
+          const prefix = ln.id + '/';
+          for (let j = 0; j < ids.length; j++) {
+            if (ids[j].startsWith(prefix) && effectiveMarkerColors[j]) {
+              colorForLegend = effectiveMarkerColors[j];
+              break;
+            }
+          }
+        }
+        if (colorForLegend) {
+          ln.color = colorForLegend;
+        }
+      }
+    }
+
+    // Sort legend nodes by rolled-up value (desc) to stabilize color assignment when using colorway
+    // This happens AFTER color assignment from marker.colors to preserve id-to-color mapping
+    legendNodes.sort((a, b) => rollup(b) - rollup(a));
+
+    // Assign colors by depth using colorway so that root has one color and children have different colors.
+    // Deterministic order per depth: sort labels by rolled-up value (desc), then assign colorway in that order.
+    if (mappedColorway && mappedColorway.length) {
+      // Determine which depth is the first visible ring (legend level)
+      const legendDepth = rootCandidates.length === 1 ? 1 : 0; // children of single root OR root level when multiple roots
+
+      // Build a traversal root (virtual when multiple roots)
+      const traversalRoot: ISunburstNode =
+        rootCandidates.length === 1
+          ? map[rootCandidates[0].id]
+          : { id: 'root', label: 'Root', value: 0, children: rootCandidates };
+
+      // Ensure values are rolled up for ordering
+      const rollupTree = (n: ISunburstNode): number => {
+        if (!n.children || n.children.length === 0) {
+          return n.value || 0;
+        }
+        let s = n.value || 0;
+        for (const c of n.children) {
+          s += rollupTree(c);
+        }
+        n.value = s;
+        return s;
+      };
+      rollupTree(traversalRoot);
+
+      // Collect first-appearance order by label for each depth (DFS preserves input child order)
+      const orderByDepth = new Map<number, string[]>();
+      const seenByDepth = new Map<number, Set<string>>();
+      const dfsCollect = (node: ISunburstNode, depth: number) => {
+        const label = node.label ?? node.id;
+        const seen = seenByDepth.get(depth) || new Set<string>();
+        const order = orderByDepth.get(depth) || [];
+        if (!seen.has(label)) {
+          seen.add(label);
+          order.push(label);
+        }
+        seenByDepth.set(depth, seen);
+        orderByDepth.set(depth, order);
+        (node.children || []).forEach(c => dfsCollect(c, depth + 1));
+      };
+      dfsCollect(traversalRoot, 0);
+
+      // Build color maps per depth (skip legendDepth which is uniform)
+      const colorMapPerDepth = new Map<number, Map<string, string>>();
+      orderByDepth.forEach((labels, depth) => {
+        if (depth === legendDepth) {
+          return;
+        }
+        const cmap = new Map<string, string>();
+        labels.forEach((label, idx) => {
+          cmap.set(label, mappedColorway[idx % mappedColorway.length]);
+        });
+        colorMapPerDepth.set(depth, cmap);
+      });
+
+      // Assign colors: legendDepth gets different colors from colorway; others use per-depth label mapping.
+      const dfsAssign = (node: ISunburstNode, depth: number) => {
+        if (!node.color) {
+          if (depth === legendDepth) {
+            // Each legend-level node gets a different color from the colorway
+            const legendNodes = orderByDepth.get(depth) || [];
+            const nodeLabel = node.label ?? node.id;
+            const colorIndex = legendNodes.indexOf(nodeLabel);
+            if (colorIndex >= 0) {
+              node.color = mappedColorway[colorIndex % mappedColorway.length];
+            } else {
+              node.color = mappedColorway[0]; // fallback
+            }
+          } else {
+            const label = node.label ?? node.id;
+            const cmap = colorMapPerDepth.get(depth);
+            if (cmap && cmap.has(label)) {
+              node.color = cmap.get(label)!;
+            }
+          }
+        }
+        (node.children || []).forEach(c => dfsAssign(c, depth + 1));
+      };
+      dfsAssign(traversalRoot, 0);
+    }
+
+    if (rootCandidates.length === 1) {
+      return map[rootCandidates[0].id];
+    }
+    return { id: 'root', label: 'Root', value: 0, children: rootCandidates };
+  };
+
+  const { chartTitle } = getTitles(input.layout);
+  return {
+    data: { flat, chartTitle, root: buildColorStampedRoot() },
+    branchValues: (first.branchvalues as 'total' | 'remainder') ?? 'total',
+    hideLabels: first.textinfo ? !['value', 'percent', 'label+percent'].includes(first.textinfo as string) : true,
+    showLabelsInPercent: first.textinfo ? ['percent', 'label+percent'].includes(first.textinfo as string) : false,
+    width: input.layout?.width,
+    height: input.layout?.height,
+    roundCorners: true,
+    legendProps: { canSelectMultipleLegends: true },
+    // Sort segments by value (desc) to assign palette colors deterministically
+    sort: 'desc',
+  } as ISunburstChartProps;
+};
+
 export const transformPlotlyJsonToVSBCProps = (
   input: PlotlySchema,
   colorMap: React.MutableRefObject<Map<string, string>>,
@@ -421,7 +682,25 @@ export const transformPlotlyJsonToVSBCProps = (
             color: lineColor,
             lineOptions: {
               ...(lineOptions ?? {}),
-              mode: series.mode,
+              // Some plotly modes like 'lines+text' are equivalent to 'text+lines'; coerce to a compatible union literal
+              mode: series.mode as
+                | 'number'
+                | 'text'
+                | 'lines'
+                | 'markers'
+                | 'lines+markers'
+                | 'text+markers'
+                | 'text+lines'
+                | 'text+lines+markers'
+                | 'none'
+                | 'gauge'
+                | 'delta'
+                | 'number+delta'
+                | 'gauge+number'
+                | 'gauge+number+delta'
+                | 'gauge+delta'
+                | 'markers+text'
+                | undefined,
             },
             useSecondaryYScale: usesSecondaryYScale(series),
           });
@@ -737,7 +1016,24 @@ export const transformPlotlyJsonToScatterChartProps = (
           color: seriesColor,
           lineOptions: {
             ...(lineOptions ?? {}),
-            mode: series.mode,
+            mode: series.mode as
+              | 'number'
+              | 'text'
+              | 'lines'
+              | 'markers'
+              | 'lines+markers'
+              | 'text+markers'
+              | 'text+lines'
+              | 'text+lines+markers'
+              | 'none'
+              | 'gauge'
+              | 'delta'
+              | 'number+delta'
+              | 'gauge+number'
+              | 'gauge+number+delta'
+              | 'gauge+delta'
+              | 'markers+text'
+              | undefined,
           },
           useSecondaryYScale: usesSecondaryYScale(series),
         } as ILineChartPoints;

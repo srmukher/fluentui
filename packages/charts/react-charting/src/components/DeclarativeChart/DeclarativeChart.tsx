@@ -19,6 +19,7 @@ import {
   isMonthArray,
   correctYearMonth,
   transformPlotlyJsonToDonutProps,
+  transformPlotlyJsonToSunburstProps,
   transformPlotlyJsonToVSBCProps,
   transformPlotlyJsonToScatterChartProps,
   transformPlotlyJsonToHorizontalBarWithAxisProps,
@@ -43,6 +44,7 @@ import { VerticalBarChart } from '../VerticalBarChart/index';
 import { IChart, IImageExportOptions } from '../../types/index';
 import { withResponsiveContainer } from '../ResponsiveContainer/withResponsiveContainer';
 import { ChartTable } from '../ChartTable/index';
+import { SunburstChart } from '../SunburstChart/index';
 
 const ResponsiveDonutChart = withResponsiveContainer(DonutChart);
 const ResponsiveVerticalStackedBarChart = withResponsiveContainer(VerticalStackedBarChart);
@@ -55,6 +57,7 @@ const ResponsiveGaugeChart = withResponsiveContainer(GaugeChart);
 const ResponsiveGroupedVerticalBarChart = withResponsiveContainer(GroupedVerticalBarChart);
 const ResponsiveVerticalBarChart = withResponsiveContainer(VerticalBarChart);
 const ResponsiveChartTable = withResponsiveContainer(ChartTable);
+const ResponsiveSunburstChart = withResponsiveContainer(SunburstChart);
 
 /**
  * DeclarativeChart schema.
@@ -132,7 +135,7 @@ export const DeclarativeChart: React.FunctionComponent<DeclarativeChartProps> = 
   }
   const plotlyInputWithValidData: PlotlySchema = {
     ...plotlyInput,
-    data: chart.validTracesInfo!.map(trace => plotlyInput.data[trace[0]]),
+    data: (chart.validTracesInfo as unknown as [number, string][])!.map(trace => plotlyInput.data[trace[0]]),
   };
 
   let { selectedLegends } = plotlySchema;
@@ -315,6 +318,13 @@ export const DeclarativeChart: React.FunctionComponent<DeclarativeChartProps> = 
       return (
         <ResponsiveSankeyChart
           {...transformPlotlyJsonToSankeyProps(plotlyInputWithValidData, colorMap, props.colorwayType, isDarkTheme)}
+          {...commonProps}
+        />
+      );
+    case 'sunburst':
+      return (
+        <ResponsiveSunburstChart
+          {...transformPlotlyJsonToSunburstProps(plotlyInputWithValidData, colorMap, props.colorwayType, isDarkTheme)}
           {...commonProps}
         />
       );
