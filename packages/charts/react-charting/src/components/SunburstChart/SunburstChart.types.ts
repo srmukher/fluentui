@@ -45,7 +45,7 @@ export interface ISunburstChartProps {
   startAngle?: number; // default 0
   endAngle?: number; // default 2 * Math.PI
   padAngle?: number; // default 0
-  branchValues?: BranchValues; // default 'total'
+  branchValues?: BranchValues; // default 'remainder' (matches Plotly default)
 
   sort?: 'none' | 'asc' | 'desc' | ((a: ISunburstNode, b: ISunburstNode, depth: number) => number);
 

@@ -31,12 +31,163 @@ export class DonutChartBasicExample extends React.Component<IDonutChartProps, ID
       textinfo: 'label+value',
     };
 
-    // Sunburst with empty (zero-value) segments (e.g., Noam and Abel are zero)
-    const sunburstFlatWithEmpty = {
-      ids: ['Seth/Enos', 'Seth/Noam', 'Awan/Enoch', 'Seth', 'Cain', 'Awan', 'Abel', 'Azura', 'Eve'],
-      labels: ['Enos', 'Noam', 'Enoch', 'Seth', 'Cain', 'Awan', 'Abel', 'Azura', 'Eve'],
-      parents: ['Seth', 'Seth', 'Awan', 'Eve', 'Eve', 'Eve', 'Eve', 'Eve', ''],
-      values: [28, 0, 12, 28, 20, 12, 0, 6, 0],
+    // Sunburst with remainder mode - creates empty segments where parent > sum(children)
+    // Three-level hierarchy to test deep remainder behavior
+    const sunburstFlatWithRemainders = {
+      ids: [
+        // Level 3 (leaves)
+        'Seth/Enos/Cainan',
+        'Seth/Enos/Mahalaleel',
+        'Seth/Noam/Child1',
+        'Awan/Enoch/Irad',
+        'Awan/Enoch/Mehujael',
+        // Level 2
+        'Seth/Enos',
+        'Seth/Noam',
+        'Awan/Enoch',
+        'Cain/Descendant',
+        // Level 1
+        'Seth',
+        'Cain',
+        'Awan',
+        'Abel',
+        'Azura',
+        // Level 0 (root)
+        'Eve',
+      ],
+      labels: [
+        // Level 3 labels
+        'Cainan',
+        'Mahalaleel',
+        'Child1',
+        'Irad',
+        'Mehujael',
+        // Level 2 labels
+        'Enos',
+        'Noam',
+        'Enoch',
+        'Descendant',
+        // Level 1 labels
+        'Seth',
+        'Cain',
+        'Awan',
+        'Abel',
+        'Azura',
+        // Level 0 label
+        'Eve',
+      ],
+      parents: [
+        // Level 3 parents
+        'Seth/Enos',
+        'Seth/Enos',
+        'Seth/Noam',
+        'Awan/Enoch',
+        'Awan/Enoch',
+        // Level 2 parents
+        'Seth',
+        'Seth',
+        'Awan',
+        'Cain',
+        // Level 1 parents
+        'Eve',
+        'Eve',
+        'Eve',
+        'Eve',
+        'Eve',
+        // Level 0 parent
+        '',
+      ],
+      // Values designed to create remainder gaps at each level
+      values: [
+        // Level 3: leaf values (some small, some zero to create variety)
+        8,
+        6,
+        0,
+        4,
+        3,
+        // Level 2: parent remainder values (will have gaps since children don't sum to total space)
+        4,
+        2,
+        5,
+        8, // Enos remainder=4 (children=14, total=18), Noam remainder=2 (children=0, total=2), etc.
+        // Level 1: parent remainder values
+        12,
+        15,
+        2,
+        0,
+        8, // Seth remainder=12 (children=20, total=32), Cain remainder=15 (children=8, total=23), etc.
+        // Level 0: root remainder
+        0, // Eve remainder=0 (children will sum to total space)
+      ],
+    };
+
+    // Schema-style data that mimics the attached Plotly schema (with NaN/zero values creating empty segments)
+    const sunburstSchemaStyle = {
+      ids: [
+        'Bachelors/Computer Science/Intro to CS',
+        'Bachelors/Computer Science/Algorithms',
+        'Bachelors/Mathematics/Calculus',
+        'Bachelors/Mathematics/Statistics',
+        'Bachelors/History/World History',
+        'Masters/Data Science/Machine Learning',
+        'Masters/Education/Curriculum Design',
+        'Bachelors/Computer Science',
+        'Bachelors/Mathematics',
+        'Bachelors/History',
+        'Masters/Data Science',
+        'Masters/Education',
+        'Bachelors',
+        'Masters',
+      ],
+      labels: [
+        'Intro to CS',
+        'Algorithms',
+        'Calculus',
+        'Statistics',
+        'World History',
+        'Machine Learning',
+        'Curriculum Design',
+        'Computer Science',
+        'Mathematics',
+        'History',
+        'Data Science',
+        'Education',
+        'Bachelors',
+        'Masters',
+      ],
+      parents: [
+        'Bachelors/Computer Science',
+        'Bachelors/Computer Science',
+        'Bachelors/Mathematics',
+        'Bachelors/Mathematics',
+        'Bachelors/History',
+        'Masters/Data Science',
+        'Masters/Education',
+        'Bachelors',
+        'Bachelors',
+        'Bachelors',
+        'Masters',
+        'Masters',
+        '',
+        '',
+      ],
+      // Remainder values that create empty segments (including NaN values like the schema)
+      values: [
+        0.69,
+        0.98,
+        0.8,
+        0.58,
+        NaN, // History course has NaN (creates empty segment)
+        0.53,
+        0.93,
+        0.2,
+        0.15,
+        NaN,
+        0.1,
+        0.2, // History department has NaN remainder (empty segment)
+        0.1,
+        0.15, // Program remainders
+      ],
     };
 
     return (
@@ -67,27 +218,41 @@ export class DonutChartBasicExample extends React.Component<IDonutChartProps, ID
           />
         </div>
 
-        <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap', marginTop: 8 }}>
-          <div style={{ width: 420, height: 420 }}>
+        <div style={{ display: 'flex', gap: 20, flexWrap: 'wrap', marginTop: 8 }}>
+          <div style={{ width: 380, height: 420 }}>
+            <h4 style={{ margin: '0 0 8px 0' }}>Total Mode (No Empty Segments)</h4>
             <Sunburst
-              data={{ flat: sunburstFlatComplete, chartTitle: 'Eve family (complete)' }}
+              data={{ flat: sunburstFlatComplete, chartTitle: 'Simple fruits/vegetables' }}
               branchValues="total"
               enableGradient={this.state.enableGradient}
               roundCorners={this.state.roundCorners}
               legendProps={{ canSelectMultipleLegends: this.state.legendMultiSelect }}
-              width={400}
-              height={400}
+              width={360}
+              height={380}
             />
           </div>
-          <div style={{ width: 420, height: 420 }}>
+          <div style={{ width: 380, height: 420 }}>
+            <h4 style={{ margin: '0 0 8px 0' }}>Remainder Mode (Shows Empty Segments)</h4>
             <Sunburst
-              data={{ flat: sunburstFlatWithEmpty, chartTitle: 'Eve family (with empties)' }}
-              branchValues="total"
+              data={{ flat: sunburstFlatWithRemainders, chartTitle: 'Eve family tree with remainders' }}
+              branchValues="remainder"
               enableGradient={this.state.enableGradient}
               roundCorners={this.state.roundCorners}
               legendProps={{ canSelectMultipleLegends: this.state.legendMultiSelect }}
-              width={400}
-              height={400}
+              width={360}
+              height={380}
+            />
+          </div>
+          <div style={{ width: 380, height: 420 }}>
+            <h4 style={{ margin: '0 0 8px 0' }}>Schema-style Data (Remainder Mode)</h4>
+            <Sunburst
+              data={{ flat: sunburstSchemaStyle, chartTitle: 'University courses completion' }}
+              branchValues="remainder"
+              enableGradient={this.state.enableGradient}
+              roundCorners={this.state.roundCorners}
+              legendProps={{ canSelectMultipleLegends: this.state.legendMultiSelect }}
+              width={360}
+              height={380}
             />
           </div>
         </div>

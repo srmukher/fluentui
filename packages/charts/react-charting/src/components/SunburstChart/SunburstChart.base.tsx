@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { classNamesFunction, getId, getRTL, initializeComponentRef } from '@fluentui/react/lib/Utilities';
+import { getId, getRTL, initializeComponentRef } from '@fluentui/react/lib/Utilities';
 import { IProcessedStyleSet } from '@fluentui/react/lib/Styling';
 import { Callout, DirectionalHint } from '@fluentui/react/lib/Callout';
 import { FocusZone, FocusZoneDirection, FocusZoneTabbableElements } from '@fluentui/react-focus';
@@ -7,7 +7,6 @@ import { ChartHoverCard, ILegend, Legends } from '../../index';
 import { Arc } from '../DonutChart/Arc/Arc';
 import { IArcData } from '../DonutChart/Arc/Arc.types';
 import { IChart, IChartDataPoint } from '../../types/index';
-// no direct formatting here; use ChartHoverCard for formatting
 import { getNextGradient } from '../../utilities/index';
 import { toImage } from '../../utilities/image-export-utils';
 import { ILegendContainer } from '../Legends/index';
@@ -19,6 +18,7 @@ import {
   ISunburstFlatData,
 } from './SunburstChart.types';
 import { getStyles } from './SunburstChart.styles';
+import { classNamesFunction } from '../../Utilities';
 
 const getClassNames = classNamesFunction<ISunburstChartStyleProps, ISunburstChartStyles>();
 const LEGEND_CONTAINER_HEIGHT = 40;
@@ -42,7 +42,7 @@ const getPlotlyColor = (index: number): string => {
   return PLOTLY_COLORS[index % PLOTLY_COLORS.length];
 };
 
-type Segment = IArcData & { node: ISunburstNode; depth: number; path: string[] };
+type Segment = IArcData & { node: ISunburstNode; depth: number; path: string[]; isZeroRemainder?: boolean };
 
 interface ISunburstChartState {
   showHover?: boolean;
@@ -60,15 +60,6 @@ interface ISunburstChartState {
 }
 
 export class SunburstChartBase extends React.Component<ISunburstChartProps, ISunburstChartState> implements IChart {
-  public static defaultProps: Partial<ISunburstChartProps> = {
-    innerRadius: 0,
-    levelThickness: 40,
-    startAngle: 0,
-    endAngle: Math.PI * 2,
-    branchValues: 'total',
-    hideLabels: true,
-  };
-
   private _classNames: IProcessedStyleSet<ISunburstChartStyles>;
   private _rootElem: HTMLElement | null;
   private _uniqText: string;
@@ -139,7 +130,7 @@ export class SunburstChartBase extends React.Component<ISunburstChartProps, ISun
     });
 
     const { root, nodes } = buildTree(data);
-    const segments = computeLayout(root, this.props);
+    const segments = computeLayout(root, { ...this.props, branchValues: this.props.branchValues || 'remainder' });
 
     // Legends should come from the first visible ring (children of the root if a single root exists)
     // Build an index to access node color/value by id
@@ -155,7 +146,14 @@ export class SunburstChartBase extends React.Component<ISunburstChartProps, ISun
     for (let s = 0; s < segments.length; s++) {
       const seg = segments[s];
       if (seg.depth === 0) {
-        topLevelValue.set(seg.node.id, seg.value || 0);
+        // In branchvalues='remainder' mode, the parent segment's displayed value is only the remainder.
+        // For legend ordering and color assignment we need the TOTAL (remainder + children) so that
+        // proportions match Plotly's visual sizing. rollup() stored that as __computedTotal.
+        const totalForLegend =
+          this.props.branchValues === 'remainder'
+            ? (seg.node as any).__computedTotal || seg.value || 0
+            : seg.value || 0;
+        topLevelValue.set(seg.node.id, totalForLegend);
       }
     }
     const levelNodesRaw = getLegendLevelNodes(nodes);
@@ -188,7 +186,8 @@ export class SunburstChartBase extends React.Component<ISunburstChartProps, ISun
     const centerX = _width / 2;
     const centerY = _height / 2;
 
-    const totalValue = segments.reduce((sum, s) => sum + (s.value || 0), 0);
+    // Angle calculation for zero-value segments is handled in computeLayout/traverse, not here.
+    // No need to duplicate angle logic in render. Use segments as computed.
 
     const activeArc = this._expandHighlightedLegends(this._getHighlightedLegend(), nodes);
 
@@ -207,6 +206,17 @@ export class SunburstChartBase extends React.Component<ISunburstChartProps, ISun
             >
               <g transform={`translate(${centerX},${centerY})`}>
                 {segments.map((seg, i) => {
+                  // Plotly parity rules (branchvalues='remainder'):
+                  // 1. Parent sectors are always rendered; their angular span equals sum(children)+remainder.
+                  // 2. If a child has value 0 it is NOT rendered and consumes 0 angle (siblings close up).
+                  // 3. "Remainder" of 0 on a parent still allows the parent ring to render (just no inner fill concept here).
+                  const hasChildren = !!(seg.node.children && seg.node.children.length > 0);
+                  const isRemainderMode = (this.props.branchValues || 'remainder') === 'remainder';
+                  const isZeroLeaf = isRemainderMode && !hasChildren && (seg.node.value || 0) === 0;
+                  if (isZeroLeaf) {
+                    return null; // hide zero-value leaves like Plotly
+                  }
+
                   const depthInner = innerRadius + getAccumulatedThickness(this.props, seg.depth);
                   const depthOuter = innerRadius + getAccumulatedThickness(this.props, seg.depth + 1);
                   const color = resolveColor(seg, i, this.props, nodes, legendColorMap);
@@ -219,6 +229,7 @@ export class SunburstChartBase extends React.Component<ISunburstChartProps, ISun
                     callOutAccessibilityData: seg.node.callOutAccessibilityData,
                     onClick: seg.node.onClick,
                   };
+
                   return (
                     <Arc
                       key={`arc-${i}`}
@@ -238,7 +249,6 @@ export class SunburstChartBase extends React.Component<ISunburstChartProps, ISun
                       nextColor={color}
                       hideLabels={this.props.hideLabels}
                       showLabelsInPercent={this.props.showLabelsInPercent}
-                      totalValue={totalValue}
                       onFocusCallback={this._focusCallback}
                       hoverOnCallback={this._hoverCallback}
                       hoverLeaveCallback={this._hoverLeave}
@@ -488,9 +498,28 @@ function buildTree(data: ISunburstChartProps['data']): {
 function flatToTree(flat: ISunburstFlatData, markerColors?: string[]): ISunburstNode {
   const map: Record<string, ISunburstNode & { parent?: string | null }> = {};
   // Attach color from marker.colors to each id before any sorting or transformation
+  // IMPORTANT: In Plotly sunburst (branchvalues='remainder') the leaf rows often
+  // appear BEFORE their ancestor ids in the arrays. While processing children we
+  // create placeholder parent nodes (value=0). Later, when we finally encounter
+  // the ancestor id in flat.ids, we MUST OVERWRITE that placeholder's value with
+  // the real remainder value. Previous logic used `map[id] = map[id] || {...}`
+  // which preserved the 0 and produced empty inner wedges. We now always update
+  // label/value (and color if still unset) when the definitive row shows up.
   flat.ids.forEach((id, i) => {
     const color = markerColors ? markerColors[i] : undefined;
-    map[id] = map[id] || { id, label: flat.labels[i], value: flat.values[i], children: [], color };
+    const rawValue = i < flat.values.length ? flat.values[i] : 0;
+    // Handle NaN values (like in Plotly schema) by treating them as 0 for remainder mode
+    const value = isNaN(rawValue) ? 0 : rawValue;
+    const existing = map[id];
+    if (existing) {
+      existing.label = flat.labels[i];
+      existing.value = value;
+      if (!existing.color && color) {
+        existing.color = color;
+      }
+    } else {
+      map[id] = { id, label: flat.labels[i], value, children: [], color };
+    }
   });
   flat.ids.forEach((id, i) => {
     const parent = flat.parents[i];
@@ -524,68 +553,254 @@ function flatToTree(flat: ISunburstFlatData, markerColors?: string[]): ISunburst
 
 function rollup(node: ISunburstNode, mode: ISunburstChartProps['branchValues']): number {
   if (!node.children || node.children.length === 0) {
-    return node.value || 0;
+    const nodeValue = node.value || 0;
+    return isNaN(nodeValue) ? 0 : nodeValue;
   }
+
+  // Recursively process children first
   const childSum = node.children.reduce((s, c) => s + rollup(c, mode), 0);
+
   if (mode === 'total') {
-    node.value = node.value && node.value > 0 ? node.value : childSum;
+    // In 'total' mode, preserve the original node value - DO NOT overwrite it
+    // The node value represents the size of the parent segment
+    // Children are allocated proportionally within the parent's space
+    const nodeValue = node.value || 0;
+    return isNaN(nodeValue) ? 0 : nodeValue;
   } else {
-    node.value = (node.value || 0) + childSum;
+    // In 'remainder' mode, the node value IS the remainder.
+    // The total space for angle allocation is remainder + children
+    const rawNodeValue = node.value || 0;
+    const nodeValue = isNaN(rawNodeValue) ? 0 : rawNodeValue; // Treat NaN as 0 remainder
+    const totalSize = nodeValue + childSum;
+
+    // Debug: Log remainder mode calculations
+    if (nodeValue === 0) {
+      console.log(
+        `Rollup: ${node.id} has ZERO remainder (${nodeValue}) + children (${childSum}) = total (${totalSize})`,
+      );
+    }
+
+    // Store computed total for layout calculations but preserve original value for display
+    (node as any).__computedTotal = totalSize;
+    (node as any).__remainder = nodeValue;
+
+    return totalSize;
   }
-  return node.value || 0;
 }
 
 function computeLayout(root: ISunburstNode, props: ISunburstChartProps): Segment[] {
+  // Debug: Print hierarchy structure and values before layout
+  function printHierarchy(node: ISunburstNode, depth: number = 0): void {
+    const indent = '  '.repeat(depth);
+    console.log(`${indent}${node.id || '(root)'}: value=${node.value}`);
+    if (node.children && node.children.length > 0) {
+      node.children.forEach((child: ISunburstNode) => printHierarchy(child, depth + 1));
+    }
+  }
+  // Use loose comparison; type definition may only declare 'total' but we support 'remainder' internally
+  if ((props.branchValues as any) === 'remainder') {
+    console.log('=== SUNBURST HIERARCHY DUMP ===');
+    printHierarchy(root);
+    console.log('=== END HIERARCHY DUMP ===');
+  }
   const start = props.startAngle || 0;
   const end = props.endAngle || Math.PI * 2;
   rollup(root, props.branchValues);
 
   const segments: Segment[] = [];
-  const path: string[] = [];
+
+  // Debug: Track function calls with comprehensive data info
+  if ((props.branchValues as any) === 'remainder') {
+    const timestamp = Date.now();
+    console.log(`=== computeLayout CALLED at ${timestamp} ===`);
+    console.log('Props branchValues:', props.branchValues);
+    console.log('Root node:', root);
+    console.log('Data structure check:');
+
+    // Check the flat data if available
+    if ((props.data as any).flat) {
+      const flat = (props.data as any).flat;
+      console.log('Flat data values:', flat.values?.slice(0, 10));
+      console.log('Flat data IDs:', flat.ids?.slice(0, 10));
+
+      // Find zero values specifically
+      const zeroNodes = [];
+      for (let i = 0; i < (flat.values?.length || 0); i++) {
+        if (flat.values[i] === 0) {
+          zeroNodes.push(flat.ids[i]);
+        }
+      }
+      console.log('Zero-value nodes from flat data:', zeroNodes);
+    }
+  }
 
   const sortFn = getSortFn(props);
 
-  const traverse = (node: ISunburstNode, depth: number, a0: number, a1: number) => {
+  // New logic for remainder mode: absolute (global) angle scaling so children angles
+  // are based on the global total of top-level parents. Parent remainder is left blank.
+  if (props.branchValues === 'remainder') {
+    const fullSpan = end - start;
+    // Determine top-level parents (exclude pseudo root if present)
+    const topLevel: ISunburstNode[] = root.id === '__plotly_center__' ? root.children || [] : [root];
+    const getTotal = (n: ISunburstNode) =>
+      (n as any).__computedTotal !== undefined ? (n as any).__computedTotal : n.value || 0;
+    const globalTotal = topLevel.reduce((s, n) => s + getTotal(n), 0) || 1; // avoid div by 0
+
+    const traverseGlobal = (node: ISunburstNode, depth: number, a0: number, a1: number, parentPath: string[]) => {
+      if (depth >= (props.maxDepth ?? Number.POSITIVE_INFINITY)) {
+        return;
+      }
+      // Create a segment for every non-pseudo node with non-zero angular span
+      if (depth >= 0 && node.id !== '__plotly_center__') {
+        if (a1 > a0) {
+          segments.push(makeSeg(node, depth, a0, a1, parentPath, props.branchValues));
+        }
+      }
+      if (!node.children || node.children.length === 0) {
+        return; // leaf
+      }
+      const children = [...node.children];
+      if (sortFn) {
+        children.sort((a, b) => sortFn(a, b, depth));
+      }
+      let acc = a0;
+      const parentEnd = a1;
+      for (let i = 0; i < children.length; i++) {
+        const c = children[i];
+        const t = getTotal(c);
+        if (t <= 0) {
+          continue; // zero total => contributes to blank remainder
+        }
+        let childAngle = fullSpan * (t / globalTotal);
+        // Clamp to parent bounds to avoid floating overflow
+        if (acc + childAngle > parentEnd) {
+          childAngle = Math.max(0, parentEnd - acc);
+        }
+        if (childAngle <= 0) {
+          continue;
+        }
+        const s = acc;
+        const e = s + childAngle;
+        traverseGlobal(c, depth + 1, s, e, parentPath.concat(node.id));
+        acc = e;
+        if (acc >= parentEnd - 1e-10) {
+          break; // no more space within parent wedge
+        }
+      }
+      // leftover (parentEnd - acc) is parent's remainder; intentionally unrendered
+    };
+
+    let running = start;
+    for (let i = 0; i < topLevel.length; i++) {
+      const p = topLevel[i];
+      const pt = getTotal(p);
+      if (pt <= 0) {
+        continue; // skip zero-size top-level
+      }
+      let pAngle = fullSpan * (pt / globalTotal);
+      if (running + pAngle > end) {
+        pAngle = Math.max(0, end - running);
+      }
+      const pStart = running;
+      const pEnd = pStart + pAngle;
+      traverseGlobal(p, 0, pStart, pEnd, []);
+      running = pEnd;
+      if (running >= end - 1e-10) {
+        break;
+      }
+    }
+
+    if ((props.branchValues as any) === 'remainder') {
+      console.log(`=== computeLayout FINISHED (global remainder mode): ${segments.length} segments created ===`);
+    }
+    return segments;
+  }
+
+  // Existing logic for 'total' branch values (unchanged) or any other mode
+  const traverse = (node: ISunburstNode, depth: number, a0: number, a1: number, parentPath: string[]) => {
     if (depth >= (props.maxDepth ?? Number.POSITIVE_INFINITY)) {
       return;
     }
+    if (depth >= 0 && node.id !== '__plotly_center__') {
+      const segment = makeSeg(node, depth, a0, a1, parentPath, props.branchValues);
+      segments.push(segment);
+    }
     if (!node.children || node.children.length === 0) {
-      segments.push(makeSeg(node, depth, a0, a1, path));
       return;
     }
     const children = [...node.children];
     if (sortFn) {
       children.sort((a, b) => sortFn(a, b, depth));
     }
+    const getNodeValue = (n: ISunburstNode) => n.value || 0;
+    const total = children.reduce((s, c) => s + getNodeValue(c), 0) || 1;
     let acc = a0;
-    for (let idx = 0; idx < children.length; idx++) {
-      const c = children[idx];
-      const isLast = idx === children.length - 1;
-      const angle = isLast ? a1 - acc : (a1 - a0) * ((c.value || 0) / (node.value || 1));
-      const s = acc;
-      const e = s + angle;
-      segments.push(makeSeg(c, depth, s, e, path.concat(node.id)));
-      acc = e;
-      if (c.children && c.children.length > 0) {
-        traverse(c, depth + 1, s, e);
+    const totalAngle = a1 - a0;
+    for (let i = 0; i < children.length; i++) {
+      const c = children[i];
+      const v = getNodeValue(c);
+      if (v <= 0) {
+        continue;
       }
+      const ang = totalAngle * (v / total);
+      const s = acc;
+      const e = s + ang;
+      traverse(c, depth + 1, s, e, parentPath.concat(node.id));
+      acc = e;
     }
   };
-  // depth -1 is virtual root if root has parentless children; to keep consistent, start from root's children
-  traverse({ ...root, children: root.children || [] }, 0, start, end);
+
+  if (root.id === '__plotly_center__') {
+    traverse(root, -1, start, end, []);
+  } else {
+    traverse({ ...root, children: root.children || [] }, -1, start, end, []);
+  }
+
+  // Debug: Final segment count with details
+  if ((props.branchValues as any) === 'remainder') {
+    console.log(`=== computeLayout FINISHED: ${segments.length} segments created ===`);
+    console.log('Created segments:');
+    segments.forEach((seg, i) => {
+      console.log(`  ${i}: ${seg.node.id} (value=${seg.node.value}, depth=${seg.depth})`);
+    });
+  }
+
   return segments;
 }
 
-function makeSeg(node: ISunburstNode, depth: number, startAngle: number, endAngle: number, path: string[]): Segment {
-  const d: IArcData = {
-    data: { legend: node.id, data: node.value || 0, color: node.color },
+// Helper to create a Segment object for a node
+function makeSeg(
+  node: ISunburstNode,
+  depth: number,
+  startAngle: number,
+  endAngle: number,
+  path: string[],
+  branchValues: ISunburstChartProps['branchValues'],
+): Segment {
+  // In remainder mode, use the original node value for display and computed total for layout
+  // In total mode, use the node value for both
+  let displayValue = node.value || 0;
+  let layoutValue = node.value || 0;
+  let remainderValue = undefined;
+
+  if (branchValues === 'remainder' && (node as any).__computedTotal !== undefined) {
+    layoutValue = (node as any).__computedTotal;
+    remainderValue = (node as any).__remainder;
+    // For display purposes in remainder mode, show the remainder value
+    displayValue = remainderValue !== undefined ? remainderValue : node.value || 0;
+  }
+
+  return {
+    data: { legend: node.id, data: displayValue, color: node.color, remainder: remainderValue } as any,
     startAngle,
     endAngle,
     index: 0,
     padAngle: 0,
-    value: node.value || 0,
+    value: layoutValue, // Use layout value for angular calculations
+    node,
+    depth,
+    path,
   };
-  return { ...(d as IArcData), node, depth, path } as Segment;
 }
 
 function getAccumulatedThickness(props: ISunburstChartProps, level: number): number {
@@ -637,7 +852,10 @@ function resolveColor(
       depth: number;
       value?: number;
     };
-    topValues.push({ id, value: (n && n.value) || 0 });
+    const remainderMode = props.branchValues === 'remainder';
+    // Use computed total when in remainder mode for consistent ordering/coloring
+    const val = remainderMode && (n as any)?.__computedTotal !== undefined ? (n as any).__computedTotal : n?.value || 0;
+    topValues.push({ id, value: val });
   }
   const level0 = topValues.sort((a, b) => (b.value || 0) - (a.value || 0));
   let idx = 0;
@@ -711,11 +929,20 @@ function getSortFn(props: ISunburstChartProps) {
   if (!props.sort || props.sort === 'none') {
     return undefined;
   }
+  const remainderMode = props.branchValues === 'remainder';
+  const val = (n: ISunburstNode) =>
+    remainderMode && (n as any).__computedTotal !== undefined ? (n as any).__computedTotal : n.value || 0;
+
   if (props.sort === 'asc') {
-    return (a: ISunburstNode, b: ISunburstNode) => (a.value || 0) - (b.value || 0);
+    return (a: ISunburstNode, b: ISunburstNode) => val(a) - val(b);
   }
   if (props.sort === 'desc') {
-    return (a: ISunburstNode, b: ISunburstNode) => (b.value || 0) - (a.value || 0);
+    return (a: ISunburstNode, b: ISunburstNode) => val(b) - val(a);
+  }
+  if (typeof props.sort === 'function') {
+    const userSort = props.sort;
+    return (a: ISunburstNode, b: ISunburstNode, depth: number) =>
+      userSort({ ...a, value: val(a) }, { ...b, value: val(b) }, depth);
   }
   return props.sort;
 }

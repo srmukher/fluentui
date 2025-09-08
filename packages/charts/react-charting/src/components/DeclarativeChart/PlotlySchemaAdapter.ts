@@ -64,7 +64,6 @@ import {
 import { timeParse } from 'd3-time-format';
 import { curveCardinal as d3CurveCardinal } from 'd3-shape';
 import type { ColorwayType } from './PlotlyColorAdapter';
-import { getSchemaColors } from './PlotlyColorAdapter';
 import { extractColor, resolveColor } from './PlotlyColorAdapter';
 import { ISunburstChartProps, ISunburstFlatData, ISunburstNode } from '../SunburstChart/index';
 
@@ -330,6 +329,146 @@ export const transformPlotlyJsonToDonutProps = (
   };
 };
 
+// Function to decode base64 binary data to float64 array
+function decodeBinaryData(binaryData: { dtype: string; bdata: string; shape?: string }): number[] {
+  if (!binaryData.bdata || binaryData.dtype !== 'f8') {
+    return [];
+  }
+
+  try {
+    // Decode base64 to binary data
+    const binaryString = atob(binaryData.bdata);
+    const bytes = new Uint8Array(binaryString.length);
+    for (let i = 0; i < binaryString.length; i++) {
+      bytes[i] = binaryString.charCodeAt(i);
+    }
+
+    // Convert binary data to float64 array
+    const float64Array = new Float64Array(bytes.buffer);
+    return Array.from(float64Array);
+  } catch (error) {
+    console.warn('Failed to decode binary data:', error);
+    return [];
+  }
+}
+
+// Function to interpolate color from a colorscale
+function interpolateColorFromScale(
+  value: number,
+  colorscale: Array<[number, string]>,
+  minValue: number,
+  maxValue: number,
+  cmid?: number,
+): string {
+  // Handle NaN values
+  if (isNaN(value)) {
+    return 'rgb(128,128,128)'; // Default gray for NaN
+  }
+
+  let normalizedValue: number;
+
+  // Handle midpoint colorscales (diverging color schemes)
+  // Only apply diverging logic if the colorscale is truly symmetric around cmid
+  const isSymmetricDivergingColorscale =
+    cmid !== undefined &&
+    colorscale.length === 3 && // Typical diverging: [0, color1], [0.5, neutral], [1, color2]
+    Math.abs(colorscale[1][0] - 0.5) < 0.1; // Middle position should be near 0.5
+
+  if (cmid !== undefined && isSymmetricDivergingColorscale) {
+    // When cmid is provided, it represents the conceptual center point of the data scale
+    // If cmid is outside the actual data range, we still need to respect the diverging nature
+
+    if (cmid >= minValue && cmid <= maxValue) {
+      // cmid is within data range - standard diverging mapping
+      if (value <= cmid) {
+        // Map [minValue, cmid] to [0, 0.5]
+        normalizedValue = ((value - minValue) / (cmid - minValue)) * 0.5;
+      } else {
+        // Map [cmid, maxValue] to [0.5, 1]
+        normalizedValue = 0.5 + ((value - cmid) / (maxValue - cmid)) * 0.5;
+      }
+    } else {
+      // cmid is outside data range - determine which side of the colorscale to use
+      if (maxValue <= cmid) {
+        // All data is below cmid, map to lower half of colorscale [0, 0.5]
+        normalizedValue = ((value - minValue) / (maxValue - minValue)) * 0.5;
+      } else if (minValue >= cmid) {
+        // All data is above cmid, map to upper half of colorscale [0.5, 1]
+        normalizedValue = 0.5 + ((value - minValue) / (maxValue - minValue)) * 0.5;
+      } else {
+        // This shouldn't happen if cmid is truly outside range, but fallback to standard mapping
+        normalizedValue = (value - minValue) / (maxValue - minValue);
+      }
+    }
+
+    normalizedValue = Math.max(0, Math.min(1, normalizedValue));
+  } else {
+    // Standard linear mapping without midpoint
+    normalizedValue = maxValue > minValue ? (value - minValue) / (maxValue - minValue) : 0;
+  }
+
+  // Find the appropriate color segment and use continuous interpolation to match Plotly
+  for (let i = 0; i < colorscale.length - 1; i++) {
+    const [pos1, color1] = colorscale[i];
+    const [pos2, color2] = colorscale[i + 1];
+
+    if (normalizedValue >= pos1 && normalizedValue <= pos2) {
+      // Use continuous linear interpolation between colors (like Plotly does)
+      const ratio = pos2 > pos1 ? (normalizedValue - pos1) / (pos2 - pos1) : 0;
+      return interpolateColor(color1, color2, ratio);
+    }
+  }
+
+  // If beyond range, return the closest color
+  return normalizedValue <= colorscale[0][0] ? colorscale[0][1] : colorscale[colorscale.length - 1][1];
+}
+
+// Function to interpolate between two RGB colors
+function interpolateColor(color1: string, color2: string, ratio: number): string {
+  const rgb1 = parseRgbColor(color1);
+  const rgb2 = parseRgbColor(color2);
+
+  if (!rgb1 || !rgb2) return color1;
+
+  const r = Math.round(rgb1.r + (rgb2.r - rgb1.r) * ratio);
+  const g = Math.round(rgb1.g + (rgb2.g - rgb1.g) * ratio);
+  const b = Math.round(rgb1.b + (rgb2.b - rgb1.b) * ratio);
+
+  return `rgb(${r},${g},${b})`;
+}
+
+// Function to parse RGB color string or named CSS color
+function parseRgbColor(color: string): { r: number; g: number; b: number } | null {
+  const match = color.match(/rgb\((\d+),\s*(\d+),\s*(\d+)\)/);
+  if (match) {
+    return {
+      r: parseInt(match[1], 10),
+      g: parseInt(match[2], 10),
+      b: parseInt(match[3], 10),
+    };
+  }
+  // Support common CSS color names
+  const cssColors: Record<string, [number, number, number]> = {
+    red: [255, 0, 0],
+    yellow: [255, 255, 0],
+    green: [0, 128, 0],
+    lightgray: [211, 211, 211],
+    grey: [128, 128, 128],
+    gray: [128, 128, 128],
+    white: [255, 255, 255],
+    black: [0, 0, 0],
+    blue: [0, 0, 255],
+    orange: [255, 165, 0],
+    // Add more as needed
+  };
+  const lower = color.trim().toLowerCase();
+  if (cssColors[lower]) {
+    const [r, g, b] = cssColors[lower];
+    return { r, g, b };
+  }
+  return null;
+}
+
 export const transformPlotlyJsonToSunburstProps = (
   input: PlotlySchema,
   colorMap: React.MutableRefObject<Map<string, string>>,
@@ -340,60 +479,171 @@ export const transformPlotlyJsonToSunburstProps = (
     ids?: string[];
     labels?: string[];
     parents?: Array<string | null>;
-    values?: number[];
+    values?: number[] | { dtype: string; bdata: string; shape?: string };
     branchvalues?: 'total' | 'remainder';
-    marker?: { colors?: (string | number)[] };
+    marker?: {
+      colors?: (string | number)[] | { dtype: string; bdata: string; shape?: string };
+      coloraxis?: string;
+    };
+    customdata?: Array<Array<number | string>> | { dtype: string; bdata: string; shape?: string };
   };
+
+  // Extract values from customdata or values, handling binary encoding
+  let extractedValues: number[] = [];
+
+  // First try to get values from the values field
+  if (first.values) {
+    if (Array.isArray(first.values)) {
+      extractedValues = first.values as number[];
+    } else if (typeof first.values === 'object' && 'bdata' in first.values) {
+      extractedValues = decodeBinaryData(first.values);
+    }
+  }
+
+  // If no values or empty values, try customdata
+  if (extractedValues.length === 0 && first.customdata) {
+    if (Array.isArray(first.customdata)) {
+      extractedValues = first.customdata.map((row: any) => {
+        if (Array.isArray(row) && row.length > 0 && typeof row[0] === 'number') {
+          return row[0];
+        }
+        return 0;
+      });
+    } else if (typeof first.customdata === 'object' && 'bdata' in first.customdata) {
+      extractedValues = decodeBinaryData(first.customdata);
+    }
+  }
 
   const flat: ISunburstFlatData = {
     ids: first.ids ?? [],
     labels: first.labels ?? [],
     parents: (first.parents as Array<string | null | ''>) ?? [],
-    values: first.values ?? [],
+    values: extractedValues.length > 0 ? extractedValues : [],
   };
 
-  // Use marker.colors when provided to keep label-color association regardless of sorting.
-  // However, if all marker.colors are the same, treat as if not provided to use colorway instead.
-  const rawMarkerColors = Array.isArray(first.marker?.colors)
-    ? (first.marker!.colors as (string | number)[]).map(c => String(c))
-    : undefined;
+  // Debug: Log the extracted values for remainder mode
+  if (first.branchvalues === 'remainder') {
+    console.log('=== PLOTLY SCHEMA DEBUG ===');
+    console.log('branchvalues:', first.branchvalues);
+    console.log('Raw extracted values:', extractedValues);
+    console.log('IDs and values:');
+    for (let i = 0; i < Math.min(10, first.ids?.length || 0); i++) {
+      console.log(`  ${first.ids?.[i]}: ${extractedValues[i]}`);
+    }
+  }
 
-  // Check if all marker colors are the same (uniform) - if so, ignore them and use colorway
-  const areMarkerColorsUniform =
-    rawMarkerColors && rawMarkerColors.length > 1 && rawMarkerColors.every(color => color === rawMarkerColors[0]);
+  // Check if colorscale is being used
+  let colorscale = (input.layout as any)?.coloraxis?.colorscale || (input.data[0] as any)?.colorscale;
+  const hasColorscale = colorscale && Array.isArray(colorscale);
 
-  const effectiveMarkerColors = areMarkerColorsUniform ? undefined : rawMarkerColors;
+  // Apply lighter colorscale only for red-blue diverging schemes to match Plotly's visual appearance
+  if (hasColorscale && colorscale) {
+    // Detect if this is a red-blue diverging colorscale (not red-yellow-green or other intentional schemes)
+    const isRedBlueColorscale = colorscale.some(
+      ([, color]: [number, string]) =>
+        color === 'rgb(103,0,31)' || color === 'rgb(178,24,43)' || color === 'rgb(214,96,77)',
+    );
 
-  // Fallback: use layout.sunburstcolorway (or template colorway) when marker.colors is not provided.
-  // For sunburst charts, preserve original Plotly colors to match Plotly.js exactly
-  const templateColorway: string[] | undefined =
-    (input.layout as any)?.sunburstcolorway ?? input.layout?.template?.layout?.colorway;
+    // Convert Plotly named colors to pure CSS colors for discrete colorscales
+    const plotlyColorMap: Record<string, string> = {
+      green: 'rgb(0,128,0)', // Pure CSS green for discrete bands
+      yellow: 'rgb(255,255,0)', // Pure CSS yellow for discrete bands
+      red: 'rgb(255,0,0)', // Pure CSS red for discrete bands
+      lightgray: 'rgb(211,211,211)',
+      grey: 'rgb(128,128,128)',
+      gray: 'rgb(128,128,128)',
+    };
+    colorscale = colorscale.map(([position, color]: [number, string]) => {
+      const lower = color.trim().toLowerCase();
+      if (plotlyColorMap[lower]) {
+        return [position, plotlyColorMap[lower]];
+      }
+      // Red-blue fix for diverging schemes only
+      if (isRedBlueColorscale) {
+        if (color === 'rgb(103,0,31)') {
+          return [position, 'rgb(255,182,193)'];
+        }
+        if (color === 'rgb(178,24,43)') {
+          return [position, 'rgb(255,160,160)'];
+        }
+        if (color === 'rgb(214,96,77)') {
+          return [position, 'rgb(255,200,200)'];
+        }
+      }
+      return [position, color];
+    });
+  }
 
-  // Check if this is the default Plotly colorway and preserve it exactly
-  const defaultPlotlyColorway = [
-    '#636efa',
-    '#ef553b',
-    '#00cc96',
-    '#ab63fa',
-    '#ffa15a',
-    '#19d3f3',
-    '#ff6692',
-    '#b6e880',
-    '#ff97ff',
-    '#fecb52',
-  ];
+  // Extract colors for sunburst chart using the same approach as other charts
+  // Use sunburstcolorway if available, otherwise fall back to template colorway
+  let colors: string[] | string | null | undefined;
 
-  const isPlotlyColorway =
-    Array.isArray(templateColorway) &&
-    templateColorway.length === defaultPlotlyColorway.length &&
-    templateColorway.every((color, index) => color.toLowerCase() === defaultPlotlyColorway[index].toLowerCase());
+  if (hasColorscale && first.marker?.coloraxis) {
+    // Handle colorscale mapping using the color values from marker.colors or customdata
+    let colorValues: number[] = [];
 
-  // Use original Plotly colors if detected, otherwise use mapped colors
-  const mappedColorway = Array.isArray(templateColorway)
-    ? isPlotlyColorway
-      ? templateColorway
-      : (getSchemaColors(templateColorway, templateColorway, colorMap, isDarkTheme) as string[] | undefined)
-    : undefined;
+    // Try to get color values from marker.colors first
+    if (first.marker.colors) {
+      if (Array.isArray(first.marker.colors)) {
+        colorValues = first.marker.colors.map((c: any) => (typeof c === 'number' ? c : parseFloat(String(c)) || 0));
+      } else if (typeof first.marker.colors === 'object' && 'bdata' in first.marker.colors) {
+        colorValues = decodeBinaryData(first.marker.colors);
+      }
+    }
+
+    // If no color values from marker, try to extract from customdata (refund amounts)
+    if (colorValues.length === 0 && first.customdata) {
+      if (Array.isArray(first.customdata)) {
+        // Extract the last element from each row (should be the metric value for coloring)
+        colorValues = first.customdata.map((row: any) => {
+          if (Array.isArray(row) && row.length > 0) {
+            const lastElement = row[row.length - 1];
+            return typeof lastElement === 'number' && !isNaN(lastElement) ? lastElement : 0;
+          }
+          return 0;
+        });
+      } else if (typeof first.customdata === 'object' && 'bdata' in first.customdata) {
+        colorValues = decodeBinaryData(first.customdata);
+      }
+    }
+
+    // If still no color values, use the chart values as fallback
+    if (colorValues.length === 0) {
+      colorValues = extractedValues;
+    }
+
+    if (colorValues.length > 0) {
+      // Filter out NaN values for min/max calculation
+      const validColorValues = colorValues.filter(value => !isNaN(value) && isFinite(value));
+
+      if (validColorValues.length > 0) {
+        // Use cmin/cmax from schema if defined, otherwise use data min/max
+        const coloraxis = (input.layout as any)?.coloraxis;
+        const minValue = typeof coloraxis?.cmin === 'number' ? coloraxis.cmin : Math.min(...validColorValues);
+        const maxValue = typeof coloraxis?.cmax === 'number' ? coloraxis.cmax : Math.max(...validColorValues);
+
+        // Check if there's a colorscale midpoint (cmid) defined
+        const cmid = typeof coloraxis?.cmid === 'number' ? coloraxis.cmid : undefined;
+
+        // Map each value to a color using the colorscale
+        colors = colorValues.map(value => {
+          if (isNaN(value) || !isFinite(value)) {
+            // Use a neutral color for NaN/invalid values (middle of colorscale)
+            return interpolateColorFromScale(cmid || (minValue + maxValue) / 2, colorscale, minValue, maxValue, cmid);
+          }
+          return interpolateColorFromScale(value, colorscale, minValue, maxValue, cmid);
+        });
+      }
+    }
+  } else {
+    colors = extractColor(
+      (input.layout as any)?.sunburstcolorway ?? input.layout?.template?.layout?.colorway,
+      colorwayType,
+      first.marker?.colors,
+      colorMap,
+      isDarkTheme,
+    );
+  }
 
   // Build a minimal tree and (if marker.colors exists) stamp colors on legend-level nodes so descendants inherit.
   // We only attach color on nodes whose parent is falsy (roots) when multiple roots, or children of a single root.
@@ -404,7 +654,9 @@ export const transformPlotlyJsonToSunburstProps = (
     // Create map for quick lookup
     const map: Record<string, ISunburstNode & { parent?: string | null }> = {};
     flat.ids.forEach((id, i) => {
-      map[id] = map[id] || { id, label: flat.labels[i], value: flat.values[i], children: [] };
+      // Use 0 as default value if values array is shorter than ids array
+      const value = i < flat.values.length ? flat.values[i] : 0;
+      map[id] = map[id] || { id, label: flat.labels[i], value, children: [] };
     });
     flat.ids.forEach((id, i) => {
       const parent = flat.parents[i];
@@ -444,40 +696,21 @@ export const transformPlotlyJsonToSunburstProps = (
       return sum;
     };
 
-    // If marker.colors are provided, attach the color that belongs to each legend-level id by scanning ids/parents.
-    // Do this BEFORE sorting to maintain id-to-color correspondence
-    if (effectiveMarkerColors) {
+    // If colorscale colors are provided, assign them directly
+    if (hasColorscale && Array.isArray(colors)) {
       const ids = first.ids ?? [];
-      const parents = (first.parents as Array<string | null | ''>) ?? [];
-      for (let i = 0; i < legendNodes.length; i++) {
-        const ln = legendNodes[i];
-        let colorForLegend: string | undefined;
-        // Preferred: find exact id match
-        const exactIdx = ids.indexOf(ln.id);
-        if (exactIdx >= 0 && effectiveMarkerColors[exactIdx]) {
-          colorForLegend = effectiveMarkerColors[exactIdx];
+      // Create a complete color mapping for all IDs using the colorscale colors
+      for (let i = 0; i < ids.length && i < colors.length; i++) {
+        if (map[ids[i]]) {
+          map[ids[i]].color = colors[i];
         }
-        // Fallback: find first child whose parent equals this legend id
-        if (!colorForLegend) {
-          for (let j = 0; j < ids.length; j++) {
-            if (parents[j] === ln.id && effectiveMarkerColors[j]) {
-              colorForLegend = effectiveMarkerColors[j];
-              break;
-            }
-          }
-        }
-        // Last resort: heuristic match by path prefix "LegendId/..."
-        if (!colorForLegend) {
-          const prefix = ln.id + '/';
-          for (let j = 0; j < ids.length; j++) {
-            if (ids[j].startsWith(prefix) && effectiveMarkerColors[j]) {
-              colorForLegend = effectiveMarkerColors[j];
-              break;
-            }
-          }
-        }
-        if (colorForLegend) {
-          ln.color = colorForLegend;
+      }
+    } else if (Array.isArray(first.marker?.colors)) {
+      const ids = first.ids ?? [];
+      // Create a complete color mapping for all IDs using resolveColor
+      for (let i = 0; i < ids.length; i++) {
+        if (map[ids[i]]) {
+          map[ids[i]].color = resolveColor(colors, i, ids[i], colorMap, isDarkTheme);
         }
       }
     }
@@ -488,7 +721,8 @@ export const transformPlotlyJsonToSunburstProps = (
 
     // Assign colors by depth using colorway so that root has one color and children have different colors.
     // Deterministic order per depth: sort labels by rolled-up value (desc), then assign colorway in that order.
-    if (mappedColorway && mappedColorway.length) {
+    // Only run this if we don't have explicit marker colors or colorscale colors (which would have been assigned above)
+    if (colors && !Array.isArray(first.marker?.colors) && !hasColorscale) {
       // Determine which depth is the first visible ring (legend level)
       const legendDepth = rootCandidates.length === 1 ? 1 : 0; // children of single root OR root level when multiple roots
 
@@ -537,7 +771,7 @@ export const transformPlotlyJsonToSunburstProps = (
         }
         const cmap = new Map<string, string>();
         labels.forEach((label, idx) => {
-          cmap.set(label, mappedColorway[idx % mappedColorway.length]);
+          cmap.set(label, resolveColor(colors, idx, label, colorMap, isDarkTheme));
         });
         colorMapPerDepth.set(depth, cmap);
       });
@@ -550,11 +784,7 @@ export const transformPlotlyJsonToSunburstProps = (
             const legendNodes = orderByDepth.get(depth) || [];
             const nodeLabel = node.label ?? node.id;
             const colorIndex = legendNodes.indexOf(nodeLabel);
-            if (colorIndex >= 0) {
-              node.color = mappedColorway[colorIndex % mappedColorway.length];
-            } else {
-              node.color = mappedColorway[0]; // fallback
-            }
+            node.color = resolveColor(colors, colorIndex >= 0 ? colorIndex : 0, nodeLabel, colorMap, isDarkTheme);
           } else {
             const label = node.label ?? node.id;
             const cmap = colorMapPerDepth.get(depth);
@@ -571,14 +801,93 @@ export const transformPlotlyJsonToSunburstProps = (
     if (rootCandidates.length === 1) {
       return map[rootCandidates[0].id];
     }
-    return { id: 'root', label: 'Root', value: 0, children: rootCandidates };
+
+    // For Plotly-style sunburst, multiple roots should start from center
+    // Don't create a virtual root - instead return a pseudo-root that represents the center
+    // This allows each true root (A, B, C) to start from depth 0 at the center
+    return {
+      id: '__plotly_center__',
+      label: '',
+      value: rootCandidates.reduce((sum, r) => sum + (r.value || 0), 0),
+      children: rootCandidates,
+    };
   };
 
   const { chartTitle } = getTitles(input.layout);
+
+  // Create data object with marker colors when available
+  const dataObject: any = {
+    flat,
+    chartTitle,
+  };
+
+  // Add marker colors if available for the base component to use
+  if (hasColorscale && Array.isArray(colors)) {
+    // For colorscale, we provide both the colorscale colors and use custom root
+    dataObject.marker = { colors: colors };
+    dataObject.root = buildColorStampedRoot();
+  } else if (Array.isArray(first.marker?.colors)) {
+    dataObject.marker = { colors: first.marker.colors };
+  } else {
+    // Only use custom root when no explicit colors
+    dataObject.root = buildColorStampedRoot();
+  }
+
+  // Calculate appropriate levelThickness to ensure all layers are visible
+  // Find the maximum depth in the data
+  let maxDepth = 0;
+  if (flat.ids.length > 0) {
+    // Build depth map
+    const depthMap: Record<string, number> = {};
+    const calculateDepth = (id: string): number => {
+      if (depthMap[id] !== undefined) {
+        return depthMap[id];
+      }
+      const index = flat.ids.indexOf(id);
+      const parent = flat.parents[index];
+      if (!parent) {
+        depthMap[id] = 0;
+        return 0;
+      }
+      const parentDepth = calculateDepth(parent);
+      depthMap[id] = parentDepth + 1;
+      return parentDepth + 1;
+    };
+
+    flat.ids.forEach(id => {
+      const depth = calculateDepth(id);
+      if (depth > maxDepth) {
+        maxDepth = depth;
+      }
+    });
+  }
+
+  // Calculate available radius considering margins
+  const width = input.layout?.width || 300;
+  const height = input.layout?.height || 300;
+  const hideLabels = first.textinfo ? !['value', 'percent', 'label+percent'].includes(first.textinfo as string) : true;
+  const marginHorizontal = hideLabels ? 0 : 80;
+  const marginVertical = hideLabels ? 0 : 40;
+  const availableRadius = Math.min(width - marginHorizontal, height - marginVertical) / 2;
+
+  // Calculate levelThickness to fit all layers (add 1 to maxDepth for total layers)
+  const totalLayers = maxDepth + 1;
+  const calculatedLevelThickness = totalLayers > 0 ? Math.floor(availableRadius / totalLayers) : 40;
+  // Ensure minimum thickness of 20 for visibility
+  const levelThickness = Math.max(20, calculatedLevelThickness);
+
+  // Debug: Final check before returning props
+  if (first.branchvalues === 'remainder') {
+    console.log('=== FINAL SUNBURST PROPS ===');
+    console.log('branchValues:', (first.branchvalues as 'total' | 'remainder') ?? 'total');
+    console.log('data.flat.values sample:', dataObject.flat?.values?.slice(0, 10));
+  }
+  console.log('dataObject = ', dataObject);
+
   return {
-    data: { flat, chartTitle, root: buildColorStampedRoot() },
+    data: dataObject,
     branchValues: (first.branchvalues as 'total' | 'remainder') ?? 'total',
-    hideLabels: first.textinfo ? !['value', 'percent', 'label+percent'].includes(first.textinfo as string) : true,
+    hideLabels,
     showLabelsInPercent: first.textinfo ? ['percent', 'label+percent'].includes(first.textinfo as string) : false,
     width: input.layout?.width,
     height: input.layout?.height,
@@ -586,6 +895,7 @@ export const transformPlotlyJsonToSunburstProps = (
     legendProps: { canSelectMultipleLegends: true },
     // Sort segments by value (desc) to assign palette colors deterministically
     sort: 'desc',
+    levelThickness,
   } as ISunburstChartProps;
 };
 
