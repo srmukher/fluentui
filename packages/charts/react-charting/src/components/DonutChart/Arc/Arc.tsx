@@ -43,8 +43,14 @@ export class Arc extends React.Component<IArcProps, IArcState> {
     const endAngle = (this.props.data?.endAngle ?? 0) - startAngle;
     const cornerRadius = this.props.roundCorners ? 3 : 0;
 
+    const fillOverride = this.props.patternId
+      ? `url(#${this.props.patternId})`
+      : this.props.enableGradient
+      ? 'transparent'
+      : this.props.color;
+
     const classNames = getClassNames(getStyles, {
-      solidFill: this.props.enableGradient ? 'transparent' : this.props.color,
+      solidFill: fillOverride,
       gradientFill: `conic-gradient(
           from ${startAngle}rad,
           ${this.props.color},

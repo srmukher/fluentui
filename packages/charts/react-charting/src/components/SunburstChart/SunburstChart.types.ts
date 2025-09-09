@@ -21,6 +21,12 @@ export interface ISunburstFlatData {
   parents: Array<string | null | ''>;
   labels: string[];
   values: number[];
+  marker?: {
+    colors?: string[];
+    pattern?: {
+      shape?: string[];
+    };
+  };
 }
 
 export interface ISunburstChartData {
@@ -65,6 +71,11 @@ export interface ISunburstChartProps {
   useUTC?: boolean;
 
   componentRef?: IRefObject<IChart>;
+
+  /** When provided, render each segment using a white base fill with a hatched SVG pattern colored by this palette.
+   * If omitted, solid colors are used as before. The array is cycled like colorway.
+   */
+  patternColors?: string[];
 
   /** Custom styles injection */
   styles?: IStyleFunctionOrObject<ISunburstChartStyleProps, ISunburstChartStyles>;

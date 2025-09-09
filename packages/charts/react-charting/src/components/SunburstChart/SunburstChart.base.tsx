@@ -130,7 +130,19 @@ export class SunburstChartBase extends React.Component<ISunburstChartProps, ISun
     });
 
     const { root, nodes } = buildTree(data);
+    console.log('DEBUG: Tree built - root:', root, 'nodes count:', nodes.length);
+
+    console.log('DEBUG: Props before computeLayout:', {
+      branchValues: this.props.branchValues,
+      propsKeys: Object.keys(this.props),
+    });
+
     const segments = computeLayout(root, { ...this.props, branchValues: this.props.branchValues || 'remainder' });
+    console.log('DEBUG: Segments computed:', segments.length, 'segments:', segments);
+
+    // Extract pattern colors from marker.colors for pattern rendering
+    const patternColors = this._extractPatternColors(data);
+    console.log('DEBUG: Pattern colors extracted:', patternColors);
 
     // Legends should come from the first visible ring (children of the root if a single root exists)
     // Build an index to access node color/value by id
@@ -205,21 +217,103 @@ export class SunburstChartBase extends React.Component<ISunburstChartProps, ISun
               ref={(n: SVGElement | null) => this._setViewBox(n)}
             >
               <g transform={`translate(${centerX},${centerY})`}>
+                {/* Pattern defs: one per unique color+shape combination that needs patterns */}
+                {patternColors &&
+                  patternColors.length > 0 &&
+                  (() => {
+                    // Collect unique color+shape combinations for segments that need patterns
+                    const neededPatterns = new Set<string>();
+                    segments.forEach((seg, i) => {
+                      const originalDataIndex = this._getOriginalDataIndex(seg, this.props.data);
+                      if (this._shouldHavePattern(originalDataIndex, this.props.data)) {
+                        const color = resolveColor(seg, i, this.props, nodes, legendColorMap);
+                        const shape = this._getPatternShape(originalDataIndex, this.props.data);
+                        const patternKey = `${color}-${shape}`;
+                        neededPatterns.add(patternKey);
+                      }
+                    });
+
+                    return (
+                      <defs>
+                        {Array.from(neededPatterns).map((patternKey: string) => {
+                          const [color, shape] = patternKey.split('-');
+                          const patternId = `sbPattern-${color.replace('#', '')}-${shape}`;
+                          return this._generatePatternDef(patternId, color, shape);
+                        })}
+                      </defs>
+                    );
+                  })()}
                 {segments.map((seg, i) => {
+                  console.log(`DEBUG: Processing segment ${i}:`, {
+                    id: seg.node.id,
+                    value: seg.node.value,
+                    startAngle: seg.startAngle,
+                    endAngle: seg.endAngle,
+                    depth: seg.depth,
+                    hasChildren: !!(seg.node.children && seg.node.children.length > 0),
+                  });
+
                   // Plotly parity rules (branchvalues='remainder'):
                   // 1. Parent sectors are always rendered; their angular span equals sum(children)+remainder.
                   // 2. If a child has value 0 it is NOT rendered and consumes 0 angle (siblings close up).
                   // 3. "Remainder" of 0 on a parent still allows the parent ring to render (just no inner fill concept here).
                   const hasChildren = !!(seg.node.children && seg.node.children.length > 0);
                   const isRemainderMode = (this.props.branchValues || 'remainder') === 'remainder';
+                  // In remainder mode, only filter out leaf nodes (no children) with zero values
+                  // Parent nodes with value 0 should still be rendered as they represent containers
                   const isZeroLeaf = isRemainderMode && !hasChildren && (seg.node.value || 0) === 0;
+
+                  console.log(`DEBUG: Filtering check for segment ${i}:`, {
+                    id: seg.node.id,
+                    hasChildren,
+                    isRemainderMode,
+                    nodeValue: seg.node.value,
+                    isZeroLeaf,
+                    willRender: !isZeroLeaf,
+                  });
+
                   if (isZeroLeaf) {
+                    console.log(`DEBUG: Skipping zero leaf segment ${i}:`, seg.node.id);
                     return null; // hide zero-value leaves like Plotly
                   }
 
                   const depthInner = innerRadius + getAccumulatedThickness(this.props, seg.depth);
                   const depthOuter = innerRadius + getAccumulatedThickness(this.props, seg.depth + 1);
                   const color = resolveColor(seg, i, this.props, nodes, legendColorMap);
+
+                  // Check if this segment should have a pattern using the original data index
+                  let patternId: string | undefined;
+                  if (patternColors && patternColors.length > 0) {
+                    // Get the original data index for this segment
+                    const originalDataIndex = this._getOriginalDataIndex(seg, this.props.data);
+                    const shouldHave = this._shouldHavePattern(originalDataIndex, this.props.data);
+
+                    // Get the original marker color for this segment
+                    const originalMarkerColor = this.props.data.flat?.marker?.colors?.[originalDataIndex];
+
+                    console.log(
+                      `DEBUG: Segment ${i} (${seg.node.id}) original index ${originalDataIndex} should have pattern: ${shouldHave}`,
+                    );
+                    console.log(
+                      `DEBUG: Segment ${i} colors - resolved: ${color}, original marker: ${originalMarkerColor}`,
+                    );
+
+                    if (shouldHave) {
+                      // Use the original marker color instead of resolved color for pattern ID
+                      const patternColor = originalMarkerColor || color;
+                      const shape = this._getPatternShape(originalDataIndex, this.props.data);
+                      patternId = `sbPattern-${patternColor.replace('#', '')}-${shape}`;
+                      console.log(
+                        `DEBUG: Segment ${i} (${seg.node.id}) gets pattern ${patternId} with pattern color ${patternColor} and shape ${shape} (original data index ${originalDataIndex})`,
+                      );
+                    } else {
+                      console.log(
+                        `DEBUG: Segment ${i} (${seg.node.id}) gets no pattern (original data index ${originalDataIndex})`,
+                      );
+                    }
+                  } else {
+                    console.log(`DEBUG: Segment ${i} (${seg.node.id}) gets no pattern (no pattern colors available)`);
+                  }
                   const arcPoint: IChartDataPoint = {
                     data: seg.value,
                     legend: seg.node.id,
@@ -229,6 +323,15 @@ export class SunburstChartBase extends React.Component<ISunburstChartProps, ISun
                     callOutAccessibilityData: seg.node.callOutAccessibilityData,
                     onClick: seg.node.onClick,
                   };
+
+                  console.log(`DEBUG: Rendering Arc ${i}:`, {
+                    innerRadius: Math.max(0, Math.min(depthInner, outerRadius)),
+                    outerRadius: Math.max(0, Math.min(depthOuter, outerRadius)),
+                    startAngle: seg.startAngle,
+                    endAngle: seg.endAngle,
+                    color: color,
+                    patternId,
+                  });
 
                   return (
                     <Arc
@@ -258,9 +361,20 @@ export class SunburstChartBase extends React.Component<ISunburstChartProps, ISun
                       calloutId={this._calloutId}
                       enableGradient={this.props.enableGradient}
                       roundCorners={this.props.roundCorners}
+                      patternId={patternId}
                     />
                   );
                 })}
+                {console.log(
+                  `DEBUG: Total Arc components rendered: ${
+                    segments.filter((seg, i) => {
+                      const hasChildren = !!(seg.node.children && seg.node.children.length > 0);
+                      const isRemainderMode = (this.props.branchValues || 'remainder') === 'remainder';
+                      const isZeroLeaf = isRemainderMode && !hasChildren && (seg.node.value || 0) === 0;
+                      return !isZeroLeaf;
+                    }).length
+                  }`,
+                )}
               </g>
             </svg>
           </div>
@@ -469,6 +583,185 @@ export class SunburstChartBase extends React.Component<ISunburstChartProps, ISun
 
     return Array.from(ids);
   }
+
+  // Extract pattern colors from data.marker.colors for automatic pattern rendering
+  private _extractPatternColors(data: ISunburstChartProps['data']): string[] {
+    // Check for marker.colors in flat data structure (Plotly schema style)
+    if (data.flat?.marker?.colors && Array.isArray(data.flat.marker.colors)) {
+      const markerColors = data.flat.marker.colors;
+      const patternShapes = data.flat.marker?.pattern?.shape;
+
+      console.log('DEBUG: _extractPatternColors - markerColors found:', markerColors.length);
+      console.log('DEBUG: _extractPatternColors - patternShapes found:', patternShapes?.length);
+
+      // Only extract colors for segments that have pattern shapes defined
+      if (patternShapes && Array.isArray(patternShapes)) {
+        // Extract unique colors for segments that actually have patterns
+        const uniquePatternColors = new Set<string>();
+        for (let i = 0; i < patternShapes.length && i < markerColors.length; i++) {
+          const shape = patternShapes[i];
+          if (shape && shape !== '' && shape !== 'none') {
+            uniquePatternColors.add(markerColors[i]);
+            console.log(`DEBUG: _extractPatternColors - Index ${i}: shape="${shape}", color="${markerColors[i]}"`);
+          }
+        }
+        return Array.from(uniquePatternColors);
+      } else {
+        // If no pattern shapes defined, don't return any pattern colors
+        return [];
+      }
+    }
+    // No patterns if no flat data with marker colors
+    return [];
+  }
+
+  // Check if a segment should have a pattern based on the pattern shapes array
+  private _shouldHavePattern(index: number, data: ISunburstChartProps['data']): boolean {
+    // Check for pattern shapes in flat data structure
+    const patternShapes = data.flat?.marker?.pattern?.shape;
+
+    console.log('DEBUG: Full flat data structure:', data.flat);
+    console.log('DEBUG: Pattern shapes:', patternShapes);
+
+    if (Array.isArray(patternShapes)) {
+      console.log('DEBUG: Pattern shapes available:', patternShapes.length, 'checking index:', index);
+      if (index < patternShapes.length) {
+        const shape = patternShapes[index];
+        const hasPattern = !!(shape && shape !== '' && shape !== 'none');
+        console.log('DEBUG: Index', index, 'shape:', shape, 'hasPattern:', hasPattern);
+        return hasPattern;
+      }
+    }
+
+    console.log('DEBUG: No pattern shapes array or index out of bounds for index', index);
+    return false;
+  }
+
+  // Get the pattern shape for a given data index
+  private _getPatternShape(index: number, data: ISunburstChartProps['data']): string {
+    const patternShapes = data.flat?.marker?.pattern?.shape;
+    if (Array.isArray(patternShapes) && index < patternShapes.length) {
+      const shape = patternShapes[index];
+      return shape && shape !== '' && shape !== 'none' ? shape : '';
+    }
+    return '';
+  }
+
+  // Generate SVG pattern definition based on shape type
+  private _generatePatternDef(patternId: string, color: string, shape: string): JSX.Element {
+    const key = patternId;
+
+    switch (shape) {
+      case '/':
+        // Diagonal lines (default/existing pattern)
+        return (
+          <pattern
+            key={key}
+            id={patternId}
+            patternUnits="userSpaceOnUse"
+            width={6}
+            height={6}
+            patternTransform="rotate(45)"
+          >
+            <rect x={0} y={0} width={6} height={6} fill="#ffffff" />
+            <line x1={0} y1={0} x2={0} y2={6} stroke={color} strokeWidth={2} />
+          </pattern>
+        );
+
+      case 'x':
+        // Crosshatch pattern
+        return (
+          <pattern key={key} id={patternId} patternUnits="userSpaceOnUse" width={8} height={8}>
+            <rect x={0} y={0} width={8} height={8} fill="#ffffff" />
+            <line x1={0} y1={0} x2={8} y2={8} stroke={color} strokeWidth={1.5} />
+            <line x1={0} y1={8} x2={8} y2={0} stroke={color} strokeWidth={1.5} />
+          </pattern>
+        );
+
+      case '.':
+        // Dots pattern
+        return (
+          <pattern key={key} id={patternId} patternUnits="userSpaceOnUse" width={8} height={8}>
+            <rect x={0} y={0} width={8} height={8} fill="#ffffff" />
+            <circle cx={4} cy={4} r={1.5} fill={color} />
+          </pattern>
+        );
+
+      case '\\':
+        // Reverse diagonal lines
+        return (
+          <pattern
+            key={key}
+            id={patternId}
+            patternUnits="userSpaceOnUse"
+            width={6}
+            height={6}
+            patternTransform="rotate(-45)"
+          >
+            <rect x={0} y={0} width={6} height={6} fill="#ffffff" />
+            <line x1={0} y1={0} x2={0} y2={6} stroke={color} strokeWidth={2} />
+          </pattern>
+        );
+
+      case '|':
+        // Vertical lines
+        return (
+          <pattern key={key} id={patternId} patternUnits="userSpaceOnUse" width={6} height={6}>
+            <rect x={0} y={0} width={6} height={6} fill="#ffffff" />
+            <line x1={3} y1={0} x2={3} y2={6} stroke={color} strokeWidth={2} />
+          </pattern>
+        );
+
+      case '-':
+        // Horizontal lines
+        return (
+          <pattern key={key} id={patternId} patternUnits="userSpaceOnUse" width={6} height={6}>
+            <rect x={0} y={0} width={6} height={6} fill="#ffffff" />
+            <line x1={0} y1={3} x2={6} y2={3} stroke={color} strokeWidth={2} />
+          </pattern>
+        );
+
+      default:
+        // Fallback to diagonal lines
+        return (
+          <pattern
+            key={key}
+            id={patternId}
+            patternUnits="userSpaceOnUse"
+            width={6}
+            height={6}
+            patternTransform="rotate(45)"
+          >
+            <rect x={0} y={0} width={6} height={6} fill="#ffffff" />
+            <line x1={0} y1={0} x2={0} y2={6} stroke={color} strokeWidth={2} />
+          </pattern>
+        );
+    }
+  }
+
+  // Get the original data index for a segment based on its node ID
+  private _getOriginalDataIndex(segment: Segment, data: ISunburstChartProps['data']): number {
+    if (!data.flat) {
+      console.log('DEBUG: No flat data available');
+      return -1;
+    }
+
+    const flatData = data.flat as any;
+    const nodeId = segment.node.id;
+
+    console.log('DEBUG: Looking for node ID:', nodeId);
+    console.log('DEBUG: Available flat data:', flatData);
+    console.log('DEBUG: Available IDs in flat data:', flatData.ids);
+
+    if (flatData.ids && Array.isArray(flatData.ids)) {
+      const index = flatData.ids.indexOf(nodeId);
+      console.log('DEBUG: Node', nodeId, 'found at original data index:', index);
+      return index;
+    }
+
+    console.log('DEBUG: No IDs array in flat data');
+    return -1;
+  }
 }
 
 // Helpers
@@ -589,6 +882,14 @@ function rollup(node: ISunburstNode, mode: ISunburstChartProps['branchValues']):
 }
 
 function computeLayout(root: ISunburstNode, props: ISunburstChartProps): Segment[] {
+  console.log('=== computeLayout ENTRY ===', {
+    rootId: root.id,
+    branchValues: props.branchValues,
+    branchValuesAsAny: props.branchValues as any,
+    isRemainder: (props.branchValues as any) === 'remainder',
+    propsKeys: Object.keys(props),
+  });
+
   // Debug: Print hierarchy structure and values before layout
   function printHierarchy(node: ISunburstNode, depth: number = 0): void {
     const indent = '  '.repeat(depth);
@@ -638,13 +939,33 @@ function computeLayout(root: ISunburstNode, props: ISunburstChartProps): Segment
 
   // New logic for remainder mode: absolute (global) angle scaling so children angles
   // are based on the global total of top-level parents. Parent remainder is left blank.
+  console.log('DEBUG: Testing remainder condition:', {
+    branchValues: props.branchValues,
+    typeOf: typeof props.branchValues,
+    stringified: JSON.stringify(props.branchValues),
+    equalToRemainder: props.branchValues === 'remainder',
+    equalToRemainderLoose: props.branchValues == 'remainder',
+  });
+
   if (props.branchValues === 'remainder') {
     const fullSpan = end - start;
-    // Determine top-level parents (exclude pseudo root if present)
-    const topLevel: ISunburstNode[] = root.id === '__plotly_center__' ? root.children || [] : [root];
+    // Determine top-level parents. When buildTree synthesized a virtual root (id==='root', value 0, >1 child),
+    // we should treat its children as the real top-level and NOT render the virtual root segment (it otherwise
+    // covers the entire circle and hides all real data segments).
+    const isVirtualRoot =
+      root.id !== '__plotly_center__' && root.id === 'root' && Array.isArray(root.children) && root.children.length > 1;
+    const topLevel: ISunburstNode[] = root.id === '__plotly_center__' || isVirtualRoot ? root.children || [] : [root];
     const getTotal = (n: ISunburstNode) =>
       (n as any).__computedTotal !== undefined ? (n as any).__computedTotal : n.value || 0;
     const globalTotal = topLevel.reduce((s, n) => s + getTotal(n), 0) || 1; // avoid div by 0
+
+    console.log(`DEBUG: Global remainder traversal setup:`, {
+      rootId: root.id,
+      isVirtualRoot,
+      topLevelCount: topLevel.length,
+      globalTotal,
+      topLevelNodes: topLevel.map(n => ({ id: n.id, total: getTotal(n) })),
+    });
 
     const traverseGlobal = (node: ISunburstNode, depth: number, a0: number, a1: number, parentPath: string[]) => {
       if (depth >= (props.maxDepth ?? Number.POSITIVE_INFINITY)) {
@@ -652,7 +973,10 @@ function computeLayout(root: ISunburstNode, props: ISunburstChartProps): Segment
       }
       // Create a segment for every non-pseudo node with non-zero angular span
       if (depth >= 0 && node.id !== '__plotly_center__') {
-        if (a1 > a0) {
+        // Skip drawing the synthesized virtual root segment
+        if (isVirtualRoot && node === root) {
+          // continue traversal into its children without pushing
+        } else if (a1 > a0) {
           segments.push(makeSeg(node, depth, a0, a1, parentPath, props.branchValues));
         }
       }
@@ -669,18 +993,27 @@ function computeLayout(root: ISunburstNode, props: ISunburstChartProps): Segment
         const c = children[i];
         const t = getTotal(c);
         if (t <= 0) {
+          console.log(`DEBUG: Skipping child ${c.id} with total ${t}`);
           continue; // zero total => contributes to blank remainder
         }
         let childAngle = fullSpan * (t / globalTotal);
+
+        console.log(
+          `DEBUG: Child ${c.id} - total: ${t}, globalTotal: ${globalTotal}, calculated angle: ${childAngle}, current acc: ${acc}`,
+        );
+
         // Clamp to parent bounds to avoid floating overflow
         if (acc + childAngle > parentEnd) {
           childAngle = Math.max(0, parentEnd - acc);
+          console.log(`DEBUG: Clamped angle to ${childAngle} due to parent bounds`);
         }
         if (childAngle <= 0) {
+          console.log(`DEBUG: Skipping child ${c.id} with non-positive angle ${childAngle}`);
           continue;
         }
         const s = acc;
         const e = s + childAngle;
+        console.log(`DEBUG: Child ${c.id} traversal - start: ${s}, end: ${e}`);
         traverseGlobal(c, depth + 1, s, e, parentPath.concat(node.id));
         acc = e;
         if (acc >= parentEnd - 1e-10) {
@@ -690,31 +1023,99 @@ function computeLayout(root: ISunburstNode, props: ISunburstChartProps): Segment
       // leftover (parentEnd - acc) is parent's remainder; intentionally unrendered
     };
 
-    let running = start;
-    for (let i = 0; i < topLevel.length; i++) {
-      const p = topLevel[i];
-      const pt = getTotal(p);
-      if (pt <= 0) {
-        continue; // skip zero-size top-level
+    if (isVirtualRoot) {
+      // Virtual root spans full circle but we distribute among its children directly
+      let running = start;
+      for (let i = 0; i < topLevel.length; i++) {
+        const p = topLevel[i];
+        const pt = getTotal(p);
+        if (pt <= 0) {
+          continue;
+        }
+        let pAngle = fullSpan * (pt / globalTotal);
+        if (running + pAngle > end) {
+          pAngle = Math.max(0, end - running);
+        }
+        const pStart = running;
+        const pEnd = pStart + pAngle;
+        traverseGlobal(p, 0, pStart, pEnd, []);
+        running = pEnd;
+        if (running >= end - 1e-10) {
+          break;
+        }
       }
-      let pAngle = fullSpan * (pt / globalTotal);
-      if (running + pAngle > end) {
-        pAngle = Math.max(0, end - running);
-      }
-      const pStart = running;
-      const pEnd = pStart + pAngle;
-      traverseGlobal(p, 0, pStart, pEnd, []);
-      running = pEnd;
-      if (running >= end - 1e-10) {
-        break;
+    } else {
+      // Root itself is a real top-level segment (single root case)
+      let running = start;
+      for (let i = 0; i < topLevel.length; i++) {
+        const p = topLevel[i];
+        const pt = getTotal(p);
+        if (pt <= 0) {
+          continue; // skip zero-size top-level
+        }
+        let pAngle = fullSpan * (pt / globalTotal);
+        if (running + pAngle > end) {
+          pAngle = Math.max(0, end - running);
+        }
+        const pStart = running;
+        const pEnd = pStart + pAngle;
+        traverseGlobal(p, 0, pStart, pEnd, []);
+        running = pEnd;
+        if (running >= end - 1e-10) {
+          break;
+        }
       }
     }
 
     if ((props.branchValues as any) === 'remainder') {
       console.log(`=== computeLayout FINISHED (global remainder mode): ${segments.length} segments created ===`);
     }
+    // Fallback: if for any reason no segments were generated, fall back to legacy per-parent allocation
+    if (segments.length === 0) {
+      console.warn('[Sunburst] Remainder mode produced 0 segments; falling back to legacy allocation logic.');
+      const legacyTraverse = (node: ISunburstNode, depth: number, a0: number, a1: number, parentPath: string[]) => {
+        if (depth >= (props.maxDepth ?? Number.POSITIVE_INFINITY)) {
+          return;
+        }
+        if (depth >= 0 && node.id !== '__plotly_center__') {
+          segments.push(makeSeg(node, depth, a0, a1, parentPath, props.branchValues));
+        }
+        if (!node.children || node.children.length === 0) {
+          return;
+        }
+        const children = [...node.children];
+        if (sortFn) {
+          children.sort((a, b) => sortFn(a, b, depth));
+        }
+        const getNodeValue = (n: ISunburstNode) => n.value || 0;
+        const total = children.reduce((s, c) => s + getNodeValue(c), 0) || 1;
+        let acc = a0;
+        const totalAngle = a1 - a0;
+        for (let i = 0; i < children.length; i++) {
+          const c = children[i];
+          const v = getNodeValue(c);
+          if (v <= 0) {
+            continue;
+          }
+          const ang = totalAngle * (v / total);
+          const s = acc;
+          const e = s + ang;
+          legacyTraverse(c, depth + 1, s, e, parentPath.concat(node.id));
+          acc = e;
+        }
+      };
+      legacyTraverse(
+        root.id === '__plotly_center__' ? root : { ...root, children: root.children || [] },
+        -1,
+        start,
+        end,
+        [],
+      );
+    }
     return segments;
   }
+
+  console.log('DEBUG: TAKING NON-REMAINDER BRANCH - this should not happen for Plotly data');
 
   // Existing logic for 'total' branch values (unchanged) or any other mode
   const traverse = (node: ISunburstNode, depth: number, a0: number, a1: number, parentPath: string[]) => {

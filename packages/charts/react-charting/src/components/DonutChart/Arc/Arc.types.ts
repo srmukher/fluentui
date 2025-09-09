@@ -117,6 +117,9 @@ export interface IArcProps {
    * [Only used when enableGradient is True].
    */
   nextColor: string;
+
+  /** Optional SVG pattern id (without url(#...)) to use as fill instead of solid color */
+  patternId?: string;
 }
 
 export interface IArcData {

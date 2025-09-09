@@ -475,6 +475,8 @@ export const transformPlotlyJsonToSunburstProps = (
   colorwayType: ColorwayType,
   isDarkTheme?: boolean,
 ): ISunburstChartProps => {
+  console.log('[PlotlySchemaAdapter] Raw input data:', JSON.stringify(input, null, 2));
+
   const first = input.data[0] as Partial<PlotData> & {
     ids?: string[];
     labels?: string[];
@@ -484,9 +486,17 @@ export const transformPlotlyJsonToSunburstProps = (
     marker?: {
       colors?: (string | number)[] | { dtype: string; bdata: string; shape?: string };
       coloraxis?: string;
+      pattern?: {
+        shape?: string[] | { dtype: string; bdata: string; shape?: string };
+      };
     };
     customdata?: Array<Array<number | string>> | { dtype: string; bdata: string; shape?: string };
   };
+
+  console.log('[PlotlySchemaAdapter] First data object:', first);
+  console.log('[PlotlySchemaAdapter] Marker object:', first.marker);
+  console.log('[PlotlySchemaAdapter] Pattern object:', first.marker?.pattern);
+  console.log('[PlotlySchemaAdapter] Pattern.shape array:', first.marker?.pattern?.shape);
 
   // Extract values from customdata or values, handling binary encoding
   let extractedValues: number[] = [];
@@ -514,12 +524,39 @@ export const transformPlotlyJsonToSunburstProps = (
     }
   }
 
+  // Extract pattern data
+  let patternShapes: string[] = [];
+  if (first.marker?.pattern?.shape) {
+    if (Array.isArray(first.marker.pattern.shape)) {
+      patternShapes = first.marker.pattern.shape;
+    } else if (typeof first.marker.pattern.shape === 'object' && 'bdata' in first.marker.pattern.shape) {
+      // Handle binary encoded pattern shapes if needed - convert numbers to strings
+      const decodedPatterns = decodeBinaryData(first.marker.pattern.shape);
+      patternShapes = decodedPatterns.map(p => String(p));
+    }
+  }
+
   const flat: ISunburstFlatData = {
     ids: first.ids ?? [],
     labels: first.labels ?? [],
     parents: (first.parents as Array<string | null | ''>) ?? [],
     values: extractedValues.length > 0 ? extractedValues : [],
   };
+
+  // Add pattern data if available
+  if (patternShapes.length > 0) {
+    flat.marker = {
+      colors: (first.marker?.colors as string[]) || [],
+      pattern: {
+        shape: patternShapes,
+      },
+    };
+  }
+
+  console.log('[PlotlySchemaAdapter] Pattern shapes extracted:', patternShapes);
+  console.log('[PlotlySchemaAdapter] Pattern data available:', patternShapes.length > 0);
+  console.log('[PlotlySchemaAdapter] Marker colors:', first.marker?.colors?.slice(0, 10), '...');
+  console.log('[PlotlySchemaAdapter] Final flat object:', flat);
 
   // Debug: Log the extracted values for remainder mode
   if (first.branchvalues === 'remainder') {
@@ -877,16 +914,32 @@ export const transformPlotlyJsonToSunburstProps = (
   const levelThickness = Math.max(20, calculatedLevelThickness);
 
   // Debug: Final check before returning props
-  if (first.branchvalues === 'remainder') {
+  let effectiveBranchValues = first.branchvalues as 'total' | 'remainder';
+
+  // If branchvalues is not explicitly set, infer it from the data structure
+  // In Plotly sunburst, if there are parent nodes with value 0, it typically uses remainder mode
+  if (!effectiveBranchValues) {
+    const hasParentNodesWithZeroValue = flat.ids.some((id, i) => {
+      const value = i < flat.values.length ? flat.values[i] : 0;
+      const hasChildren = flat.ids.some(childId => flat.parents[flat.ids.indexOf(childId)] === id);
+      return hasChildren && value === 0;
+    });
+
+    effectiveBranchValues = hasParentNodesWithZeroValue ? 'remainder' : 'total';
+    console.log('=== INFERRED BRANCH VALUES ===');
+    console.log('Inferred branchValues:', effectiveBranchValues, 'based on parent nodes with zero values');
+  }
+
+  if (effectiveBranchValues === 'remainder') {
     console.log('=== FINAL SUNBURST PROPS ===');
-    console.log('branchValues:', (first.branchvalues as 'total' | 'remainder') ?? 'total');
+    console.log('branchValues:', effectiveBranchValues);
     console.log('data.flat.values sample:', dataObject.flat?.values?.slice(0, 10));
   }
   console.log('dataObject = ', dataObject);
 
   return {
     data: dataObject,
-    branchValues: (first.branchvalues as 'total' | 'remainder') ?? 'total',
+    branchValues: effectiveBranchValues,
     hideLabels,
     showLabelsInPercent: first.textinfo ? ['percent', 'label+percent'].includes(first.textinfo as string) : false,
     width: input.layout?.width,
