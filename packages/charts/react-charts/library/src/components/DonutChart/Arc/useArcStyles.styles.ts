@@ -35,6 +35,10 @@ const useStyles = makeStyles({
   arcLabel: {
     ...typographyStyles.caption1Strong,
     fill: tokens.colorNeutralForeground1,
+    stroke: tokens.colorNeutralBackground1,
+    strokeWidth: '2px',
+    paintOrder: 'stroke fill',
+    fontWeight: '600',
     [HighContrastSelector]: {
       stroke: 'CanvasText',
     },

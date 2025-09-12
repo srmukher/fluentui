@@ -128,52 +128,29 @@ export function decodeBase64Fields(plotlySchema: PlotlySchema): PlotlySchema {
 
   // Check if the data has changed
   if (JSON.stringify(plotlySchema.data) !== JSON.stringify(originalData)) {
-    // Overwrite the 'y', 'x', or 'z' value with the decoded 'bdata'
+    // Overwrite known fields with the decoded 'bdata' array when present
     for (const item of plotlySchema.data || []) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const anyItem: any = item as any;
       ['y', 'x', 'z', 'r', 'theta', 'values'].forEach(key => {
-        if (
-          item[key as keyof typeof item] &&
-          typeof item[key as keyof typeof item] === 'object' &&
-          'bdata' in (item[key as keyof typeof item] as Record<string, number[]>)
-        ) {
-          const bdata = (item[key as keyof typeof item] as { bdata: number[] }).bdata;
-          let shape = (item[key as keyof typeof item] as { shape?: string | number[] }).shape;
-          // convert to an array if shape is a string
-          if (typeof shape === 'string') {
-            let parsedShape: number[] | undefined = undefined;
-            try {
-              // Try to parse as JSON array
-              parsedShape = JSON.parse(shape);
-              if (!isArrayOrTypedArray(parsedShape)) {
-                parsedShape = undefined;
-              }
-            } catch (error) {
-              // If JSON.parse fails, try to parse as comma-separated numbers
-              const parts = shape.split(',').map(s => Number(s.trim()));
-              if (parts.every(n => !isNaN(n))) {
-                parsedShape = parts;
-              } else {
-                shape = undefined; // If parsing fails, set shape to undefined
-              }
-            }
-            shape = parsedShape;
-          }
-          // If shape exists, decode bdata into that shape
-          if (shape !== undefined && isArrayOrTypedArray(shape)) {
-            (item[key as keyof typeof item] as number[] | number[][] | number[][][]) = reshapeArray(
-              bdata,
-              shape as number[],
-            );
-          } else {
-            (item[key as keyof typeof item] as number[]) = bdata as number[];
-          }
+        if (anyItem[key] && typeof anyItem[key] === 'object' && 'bdata' in (anyItem[key] as Record<string, number[]>)) {
+          const bdata = (anyItem[key] as { bdata: number[] }).bdata;
+          anyItem[key] = bdata as number[];
         }
       });
+
+      // Also handle nested marker.colors if provided in encoded form
+      if (anyItem.marker && typeof anyItem.marker === 'object' && anyItem.marker.colors) {
+        const colors = anyItem.marker.colors;
+        if (typeof colors === 'object' && 'bdata' in (colors as Record<string, number[]>)) {
+          const bdata = (colors as { bdata: number[] }).bdata;
+          anyItem.marker.colors = bdata as number[];
+        }
+      }
     }
 
     return plotlySchema; // Return the decoded data
   }
-
   plotlySchema.data = originalData; // Restore the original data if no changes were made
   return plotlySchema; // Return the original data if no changes were made
 }

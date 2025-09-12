@@ -40,6 +40,7 @@ import { GroupedVerticalBarChartProps } from '../GroupedVerticalBarChart/index';
 import { VerticalBarChartProps } from '../VerticalBarChart/index';
 import { ChartTableProps } from '../ChartTable/index';
 import { GanttChartProps } from '../GanttChart/index';
+import { SunburstChartProps, SunburstFlatData, SunburstNode } from '../SunburstChart/index';
 import {
   DEFAULT_DATE_STRING,
   findNumericMinMaxOfY,
@@ -1907,7 +1908,978 @@ export const transformPlotlyJsonToFunnelChartProps = (
     hideLegend: isMultiPlot || input.layout?.showlegend === false,
   };
 };
+// Function to decode base64 binary data to float64 array
+function decodeBinaryData(binaryData: { dtype: string; bdata: string; shape?: string }): number[] {
+  if (!binaryData.bdata || binaryData.dtype !== 'f8') {
+    return [];
+  }
 
+  try {
+    // Decode base64 to binary data
+    const binaryString = atob(binaryData.bdata);
+    const bytes = new Uint8Array(binaryString.length);
+    for (let i = 0; i < binaryString.length; i++) {
+      bytes[i] = binaryString.charCodeAt(i);
+    }
+
+    // Convert binary data to float64 array
+    const float64Array = new Float64Array(bytes.buffer);
+    return Array.from(float64Array);
+  } catch (error) {
+    console.warn('Failed to decode binary data:', error);
+    return [];
+  }
+}
+
+// Function to interpolate color from a colorscale
+function interpolateColorFromScale(
+  value: number,
+  colorscale: Array<[number, string]>,
+  minValue: number,
+  maxValue: number,
+  cmid?: number,
+): string {
+  // Handle NaN values
+  if (isNaN(value)) {
+    // Return midpoint color of the provided colorscale instead of a hard-coded fallback
+    const mid = 0.5;
+    for (let i = 0; i < colorscale.length - 1; i++) {
+      const [pos1, c1] = colorscale[i];
+      const [pos2, c2] = colorscale[i + 1];
+      if (mid >= pos1 && mid <= pos2) {
+        const ratio = pos2 > pos1 ? (mid - pos1) / (pos2 - pos1) : 0;
+        return interpolateColor(c1, c2, ratio);
+      }
+    }
+    return colorscale[Math.floor(colorscale.length / 2)][1];
+  }
+
+  let normalizedValue: number;
+
+  // Handle midpoint colorscales (diverging color schemes)
+  // Only apply diverging logic if the colorscale is truly symmetric around cmid
+  const isSymmetricDivergingColorscale =
+    cmid !== undefined &&
+    colorscale.length === 3 && // Typical diverging: [0, color1], [0.5, neutral], [1, color2]
+    Math.abs(colorscale[1][0] - 0.5) < 0.1; // Middle position should be near 0.5
+
+  if (cmid !== undefined && isSymmetricDivergingColorscale) {
+    // When cmid is provided, it represents the conceptual center point of the data scale
+    // If cmid is outside the actual data range, we still need to respect the diverging nature
+
+    if (cmid >= minValue && cmid <= maxValue) {
+      // cmid is within data range - standard diverging mapping
+      if (value <= cmid) {
+        // Map [minValue, cmid] to [0, 0.5]
+        normalizedValue = ((value - minValue) / (cmid - minValue)) * 0.5;
+      } else {
+        // Map [cmid, maxValue] to [0.5, 1]
+        normalizedValue = 0.5 + ((value - cmid) / (maxValue - cmid)) * 0.5;
+      }
+    } else {
+      // cmid is outside data range - determine which side of the colorscale to use
+      if (maxValue <= cmid) {
+        // All data is below cmid, map to lower half of colorscale [0, 0.5]
+        normalizedValue = ((value - minValue) / (maxValue - minValue)) * 0.5;
+      } else if (minValue >= cmid) {
+        // All data is above cmid, map to upper half of colorscale [0.5, 1]
+        normalizedValue = 0.5 + ((value - minValue) / (maxValue - minValue)) * 0.5;
+      } else {
+        // This shouldn't happen if cmid is truly outside range, but fallback to standard mapping
+        normalizedValue = (value - minValue) / (maxValue - minValue);
+      }
+    }
+
+    normalizedValue = Math.max(0, Math.min(1, normalizedValue));
+  } else {
+    // Standard linear mapping without midpoint
+    normalizedValue = maxValue > minValue ? (value - minValue) / (maxValue - minValue) : 0;
+  }
+
+  // Find the appropriate color segment and use continuous interpolation to match Plotly
+  for (let i = 0; i < colorscale.length - 1; i++) {
+    const [pos1, color1] = colorscale[i];
+    const [pos2, color2] = colorscale[i + 1];
+
+    if (normalizedValue >= pos1 && normalizedValue <= pos2) {
+      // Use continuous linear interpolation between colors (like Plotly does)
+      const ratio = pos2 > pos1 ? (normalizedValue - pos1) / (pos2 - pos1) : 0;
+      return interpolateColor(color1, color2, ratio);
+    }
+  }
+
+  // If beyond range, return the closest color
+  return normalizedValue <= colorscale[0][0] ? colorscale[0][1] : colorscale[colorscale.length - 1][1];
+}
+
+// Function to interpolate between two RGB colors
+function interpolateColor(color1: string, color2: string, ratio: number): string {
+  const rgb1 = parseRgbColor(color1);
+  const rgb2 = parseRgbColor(color2);
+
+  if (!rgb1 || !rgb2) return color1;
+
+  const r = Math.round(rgb1.r + (rgb2.r - rgb1.r) * ratio);
+  const g = Math.round(rgb1.g + (rgb2.g - rgb1.g) * ratio);
+  const b = Math.round(rgb1.b + (rgb2.b - rgb1.b) * ratio);
+
+  return `rgb(${r},${g},${b})`;
+}
+
+// Function to parse any CSS color (named, hex, rgb/rgba, hsl/hsla) using d3-color
+function parseRgbColor(color: string): { r: number; g: number; b: number } | null {
+  try {
+    const c = rgb(color);
+    if (!c || Number.isNaN(c.r) || Number.isNaN(c.g) || Number.isNaN(c.b)) {
+      return null;
+    }
+    return { r: Math.round(c.r), g: Math.round(c.g), b: Math.round(c.b) };
+  } catch {
+    return null;
+  }
+}
+
+export const transformPlotlyJsonToSunburstProps = (
+  input: PlotlySchema,
+  isMultiPlot: boolean,
+  colorMap: React.MutableRefObject<Map<string, string>>,
+  colorwayType: ColorwayType,
+  isDarkTheme?: boolean,
+): SunburstChartProps => {
+  console.log('[PlotlySchemaAdapter] Raw input data:', JSON.stringify(input, null, 2));
+
+  const first = input.data[0] as Partial<PlotData> & {
+    ids?: string[];
+    labels?: string[];
+    parents?: Array<string | null>;
+    values?: number[] | { dtype: string; bdata: string; shape?: string };
+    branchvalues?: 'total' | 'remainder';
+    marker?: {
+      colors?: (string | number)[] | { dtype: string; bdata: string; shape?: string };
+      coloraxis?: string;
+      pattern?: {
+        shape?: string[] | { dtype: string; bdata: string; shape?: string };
+      };
+    };
+    customdata?: Array<Array<number | string>> | { dtype: string; bdata: string; shape?: string };
+  };
+
+  console.log('[PlotlySchemaAdapter] First data object:', first);
+  console.log('[PlotlySchemaAdapter] Marker object:', first.marker);
+  console.log('[PlotlySchemaAdapter] Pattern object:', first.marker?.pattern);
+  console.log('[PlotlySchemaAdapter] Pattern.shape array:', first.marker?.pattern?.shape);
+
+  // Extract values from customdata or values, handling binary encoding
+  let extractedValues: number[] = [];
+
+  // First try to get values from the values field
+  if (first.values) {
+    if (Array.isArray(first.values)) {
+      extractedValues = first.values as number[];
+    } else if (typeof first.values === 'object' && 'bdata' in first.values) {
+      extractedValues = decodeBinaryData(first.values);
+    }
+  }
+
+  // If no values or empty values, try customdata
+  if (extractedValues.length === 0 && first.customdata) {
+    if (Array.isArray(first.customdata)) {
+      const customRows = first.customdata as any[];
+      extractedValues = customRows.map((row: any) => {
+        if (Array.isArray(row) && row.length > 0 && typeof row[0] === 'number') {
+          return row[0];
+        }
+        return 0;
+      });
+    } else if (typeof first.customdata === 'object' && 'bdata' in first.customdata) {
+      extractedValues = decodeBinaryData(first.customdata);
+    }
+  }
+
+  // Extract pattern data
+  let patternShapes: string[] = [];
+  if (first.marker?.pattern?.shape) {
+    if (Array.isArray(first.marker.pattern.shape)) {
+      patternShapes = first.marker.pattern.shape;
+    } else if (typeof first.marker.pattern.shape === 'object' && 'bdata' in first.marker.pattern.shape) {
+      // Handle binary encoded pattern shapes if needed - convert numbers to strings
+      const decodedPatterns = decodeBinaryData(first.marker.pattern.shape);
+      patternShapes = decodedPatterns.map(p => String(p));
+    }
+  }
+
+  // Fallback: if hierarchy arrays are effectively missing but we have rich customdata, derive a flat 1-level tree.
+  // This addresses cases where the incoming schema only contains one label/id (or none) so nothing renders.
+  // We treat the second column of customdata as a category key and aggregate the first column (numeric) as value.
+  if (
+    (first.ids?.length ?? 0) <= 1 &&
+    (first.labels?.length ?? 0) <= 1 &&
+    (first.parents?.length ?? 0) <= 1 &&
+    first.customdata &&
+    Array.isArray(first.customdata)
+  ) {
+    try {
+      const categoryTotals = new Map<string, number>();
+      (first.customdata as any[]).forEach(row => {
+        if (Array.isArray(row) && row.length >= 2) {
+          const val = typeof row[0] === 'number' && isFinite(row[0]) ? row[0] : undefined;
+          const cat = typeof row[1] === 'string' ? row[1] : undefined;
+          if (val !== undefined && cat) {
+            categoryTotals.set(cat, (categoryTotals.get(cat) || 0) + val);
+          }
+        }
+      });
+      if (categoryTotals.size > 1) {
+        // Only apply fallback if we actually derive multiple categories.
+        const derivedIds = Array.from(categoryTotals.keys());
+        const derivedValues = derivedIds.map(k => categoryTotals.get(k)!);
+        const derivedParents = derivedIds.map(() => '');
+        const derivedLabels = [...derivedIds];
+        first.ids = derivedIds;
+        first.labels = derivedLabels;
+        first.parents = derivedParents;
+        extractedValues = derivedValues; // overwrite extracted values so flat uses them
+        console.log('[Sunburst Fallback] Derived hierarchy from customdata:', {
+          count: derivedIds.length,
+          sample: derivedIds.slice(0, 8),
+        });
+      }
+    } catch (e) {
+      console.warn('[Sunburst Fallback] Failed to derive hierarchy from customdata', e);
+    }
+  }
+
+  const flat: SunburstFlatData = {
+    ids: first.ids ?? [],
+    labels: first.labels ?? [],
+    parents: (first.parents as Array<string | null | ''>) ?? [],
+    values: extractedValues.length > 0 ? extractedValues : [],
+  };
+
+  // Add pattern data if available
+  if (patternShapes.length > 0) {
+    flat.marker = {
+      colors: (first.marker?.colors as string[]) || [],
+      pattern: {
+        shape: patternShapes,
+      },
+    };
+  }
+
+  console.log('[PlotlySchemaAdapter] Pattern shapes extracted:', patternShapes);
+  console.log('[PlotlySchemaAdapter] Pattern data available:', patternShapes.length > 0);
+  console.log('[PlotlySchemaAdapter] Marker colors:', first.marker?.colors?.slice(0, 10), '...');
+  console.log('[PlotlySchemaAdapter] Final flat object:', flat);
+
+  // Debug: Log the extracted values for remainder mode
+  if (first.branchvalues === 'remainder') {
+    console.log('=== PLOTLY SCHEMA DEBUG ===');
+    console.log('branchvalues:', first.branchvalues);
+    console.log('Raw extracted values:', extractedValues);
+    console.log('IDs and values:');
+    for (let i = 0; i < Math.min(10, first.ids?.length || 0); i++) {
+      console.log(`  ${first.ids?.[i]}: ${extractedValues[i]}`);
+    }
+  }
+
+  // Check if colorscale is being used
+  let colorscale =
+    (input.layout as any)?.coloraxis?.colorscale ||
+    (input.layout as any)?.colorscale?.sequential ||
+    (input.data[0] as any)?.colorscale ||
+    first.marker?.colorscale;
+  const hasColorscale = colorscale && Array.isArray(colorscale);
+
+  console.log('[COLORSCALE DEBUG] layout.coloraxis.colorscale:', (input.layout as any)?.coloraxis?.colorscale);
+  console.log('[COLORSCALE DEBUG] layout.colorscale.sequential:', (input.layout as any)?.colorscale?.sequential);
+  console.log('[COLORSCALE DEBUG] data[0].colorscale:', (input.data[0] as any)?.colorscale);
+  console.log('[COLORSCALE DEBUG] marker.colorscale:', first.marker?.colorscale);
+  console.log('[COLORSCALE DEBUG] final colorscale:', colorscale);
+  console.log('[COLORSCALE DEBUG] hasColorscale:', hasColorscale);
+  console.log('[COLORSCALE DEBUG] marker.colors:', first.marker?.colors?.slice(0, 10));
+
+  // Intentionally do NOT mutate or remap the incoming colorscale to avoid hard-coded color substitutions.
+
+  // Calculate colorscale colors before building the tree if needed
+  let colorscaleColors: (string | null)[] | undefined;
+
+  console.log('[COLORSCALE DEBUG] About to check hasColorscale condition:', hasColorscale);
+
+  if (hasColorscale) {
+    console.log('[COLORSCALE DEBUG] ENTERING COLORSCALE PROCESSING!');
+    console.log('[COLORSCALE DEBUG] Processing colorscale - hasColorscale:', hasColorscale);
+    console.log('[COLORSCALE DEBUG] marker.coloraxis:', first.marker?.coloraxis);
+    console.log('[COLORSCALE DEBUG] marker.colorscale:', first.marker?.colorscale);
+
+    // Handle colorscale mapping using the color values from marker.colors or customdata
+    let colorValues: number[] = [];
+
+    console.log('[COLORSCALE DEBUG] marker.colors raw:', first.marker?.colors);
+    console.log('[COLORSCALE DEBUG] marker.colors is array:', Array.isArray(first.marker?.colors));
+
+    // Try to get color values from marker.colors first
+    if (first.marker?.colors) {
+      if (Array.isArray(first.marker.colors)) {
+        colorValues = first.marker.colors.map((c: any) => {
+          console.log('c ####### = ', c);
+          if (c === null || c === undefined) {
+            return NaN; // Keep nulls as NaN for proper handling
+          }
+          console.log('c typeof = ', typeof c);
+          return typeof c === 'number' ? c : parseFloat(String(c)) || NaN;
+        });
+        console.log('[COLORSCALE DEBUG] Extracted colorValues from marker.colors:', colorValues.slice(0, 10));
+      } else if (typeof first.marker.colors === 'object' && 'bdata' in first.marker.colors) {
+        colorValues = decodeBinaryData(first.marker.colors);
+        console.log('[COLORSCALE DEBUG] Extracted colorValues from bdata:', colorValues.slice(0, 10));
+      }
+    }
+
+    // If no color values from marker, try to extract from customdata (refund amounts)
+    if (colorValues.length === 0 && first.customdata) {
+      if (Array.isArray(first.customdata)) {
+        // Extract the last element from each row (should be the metric value for coloring)
+        const customRows = first.customdata as any[];
+        colorValues = customRows.map((row: any) => {
+          if (Array.isArray(row) && row.length > 0) {
+            const lastElement = row[row.length - 1];
+            return typeof lastElement === 'number' && !isNaN(lastElement) ? lastElement : 0;
+          }
+          return 0;
+        });
+      } else if (typeof first.customdata === 'object' && 'bdata' in first.customdata) {
+        colorValues = decodeBinaryData(first.customdata);
+      }
+    }
+
+    // If still no color values, use the chart values as fallback
+    if (colorValues.length === 0) {
+      colorValues = extractedValues;
+      console.log('[COLORSCALE DEBUG] Used extractedValues as fallback:', colorValues.slice(0, 10));
+    }
+
+    console.log('[COLORSCALE DEBUG] Final colorValues length:', colorValues.length);
+    console.log('[COLORSCALE DEBUG] Final colorValues sample:', colorValues.slice(0, 10));
+
+    if (colorValues.length > 0) {
+      // Filter out NaN values for min/max calculation
+      const validColorValues = colorValues.filter(value => !isNaN(value) && isFinite(value));
+
+      console.log('[COLORSCALE DEBUG] validColorValues:', validColorValues.slice(0, 10));
+      console.log('[COLORSCALE DEBUG] validColorValues length:', validColorValues.length);
+
+      if (validColorValues.length > 0) {
+        // Detect Plotly's discrete indexing pattern:
+        //  - Every valid value is a non-negative integer
+        //  - max integer < colorscaleStops-1 (meaning top stops unused)
+        //  - AND number of distinct integers <= number of colorscale stops (to avoid accidental trigger)
+        const allInts = validColorValues.every(v => Number.isInteger(v) && v >= 0);
+        const maxInt = allInts ? Math.max(...(validColorValues as number[])) : undefined;
+        const colorscaleStops = Array.isArray(colorscale) ? colorscale.length : 0;
+        const distinctCount = allInts ? new Set(validColorValues).size : 0;
+        const looksDiscrete =
+          !!allInts && colorscaleStops > 0 && maxInt! < colorscaleStops - 1 && distinctCount <= colorscaleStops;
+
+        if (looksDiscrete) {
+          console.log('[COLORSCALE DEBUG] Discrete colorscale mode detected.', {
+            maxInt,
+            colorscaleStops,
+            distinctCount,
+          });
+          // Direct index lookup: integer value N maps to colorscale[N][1]
+          colorscaleColors = colorValues.map(value => {
+            if (isNaN(value) || !isFinite(value)) return null; // preserve nulls
+            const idx = value as number;
+            const stop = colorscale[idx];
+            const color = stop ? stop[1] : colorscale[colorscale.length - 1][1];
+            console.log('[COLORSCALE DEBUG][DISCRETE] Value:', value, '-> StopIdx:', idx, 'Color:', color);
+            return color;
+          });
+        } else {
+          // Continuous (interpolated) mode like before
+          // Use cmin/cmax from schema if defined, otherwise use data min/max
+          const coloraxis = (input.layout as any)?.coloraxis;
+          const minValue = typeof coloraxis?.cmin === 'number' ? coloraxis.cmin : Math.min(...validColorValues);
+          const maxValue = typeof coloraxis?.cmax === 'number' ? coloraxis.cmax : Math.max(...validColorValues);
+
+          console.log('[COLORSCALE DEBUG] minValue:', minValue, 'maxValue:', maxValue);
+          console.log('[COLORSCALE DEBUG] Value range size:', maxValue - minValue);
+          console.log('[COLORSCALE DEBUG] colorscale:', colorscale);
+          console.log('[COLORSCALE DEBUG] All validColorValues:', validColorValues);
+
+          // Check if there's a colorscale midpoint (cmid) defined
+          const cmid = typeof coloraxis?.cmid === 'number' ? coloraxis.cmid : undefined;
+
+          // Map each value to a color using the colorscale
+          colorscaleColors = colorValues.map(value => {
+            if (isNaN(value) || !isFinite(value)) {
+              // Return null for NaN/invalid values (these nodes shouldn't get colorscale colors)
+              return null;
+            }
+            const interpolatedColor = interpolateColorFromScale(value, colorscale, minValue, maxValue, cmid);
+            console.log(
+              '[COLORSCALE DEBUG][CONTINUOUS] Value:',
+              value,
+              'Normalized:',
+              (value - minValue) / (maxValue - minValue),
+              '-> Color:',
+              interpolatedColor,
+            );
+            return interpolatedColor;
+          });
+        }
+
+        console.log('[COLORSCALE DEBUG] Final colorscaleColors sample:', colorscaleColors.slice(0, 10));
+
+        // Debug: Check if all colors are too dark (might indicate a normalization issue)
+        if (colorscaleColors && colorscaleColors.length > 0) {
+          const nonNullColors = colorscaleColors.filter(c => c !== null);
+          console.log('[COLORSCALE DEBUG] Non-null colors:', nonNullColors);
+          const darkColors = nonNullColors.filter(c => {
+            if (typeof c === 'string' && c.startsWith('#')) {
+              // Check if RGB values are all low (dark color)
+              const hex = c.slice(1);
+              const r = parseInt(hex.slice(0, 2), 16);
+              const g = parseInt(hex.slice(2, 4), 16);
+              const b = parseInt(hex.slice(4, 6), 16);
+              return r < 50 && g < 50 && b < 50; // Very dark threshold
+            }
+            return false;
+          });
+          console.log('[COLORSCALE DEBUG] Dark colors detected:', darkColors.length, 'out of', nonNullColors.length);
+        }
+      }
+    }
+  }
+
+  console.log('[COLORSCALE DEBUG] calculated colorscaleColors:', colorscaleColors?.slice(0, 10));
+
+  // Extract colors for other cases
+  let colors: string[] | string | null | undefined;
+
+  console.log('[COLORSCALE DEBUG] Final condition check:');
+  console.log('[COLORSCALE DEBUG] hasColorscale:', hasColorscale);
+  console.log('[COLORSCALE DEBUG] colorscaleColors exists:', !!colorscaleColors);
+  console.log('[COLORSCALE DEBUG] colorscaleColors length:', colorscaleColors?.length);
+
+  if (!hasColorscale || !colorscaleColors) {
+    console.log('[COLORSCALE DEBUG] FALLING BACK TO REGULAR COLOR EXTRACTION');
+    colors = extractColor(
+      (input.layout as any)?.sunburstcolorway ?? input.layout?.template?.layout?.colorway,
+      colorwayType,
+      first.marker?.colors ?? input.layout?.template?.layout?.colorway,
+      colorMap,
+      isDarkTheme,
+    );
+  }
+
+  // Build a minimal tree and (if marker.colors exists) stamp colors on legend-level nodes so descendants inherit.
+  // We only attach color on nodes whose parent is falsy (roots) when multiple roots, or children of a single root.
+  const buildColorStampedRoot = (): SunburstNode | undefined => {
+    if (!flat.ids.length) {
+      return undefined;
+    }
+    // Create map for quick lookup
+    const map: Record<string, SunburstNode & { parent?: string | null }> = {};
+    flat.ids.forEach((id, i) => {
+      // Use 0 as default value if values array is shorter than ids array
+      const value = i < flat.values.length ? flat.values[i] : 0;
+      map[id] = map[id] || { id, label: flat.labels[i], value, children: [] };
+    });
+    flat.ids.forEach((id, i) => {
+      const parent = flat.parents[i];
+      if (!parent) {
+        return;
+      }
+      if (!map[parent]) {
+        map[parent] = { id: parent, label: String(parent), value: 0, children: [] };
+      }
+      map[parent].children = map[parent].children || [];
+      map[parent].children!.push(map[id]);
+      // Set parent reference for hierarchical color assignment
+      (map[id] as any).parent = map[parent];
+    });
+    // Determine visible legend ring depth
+    const rootCandidates: SunburstNode[] = [];
+    flat.ids.forEach((id, i) => {
+      const parent = flat.parents[i];
+      if (!parent) {
+        rootCandidates.push(map[id]);
+      }
+    });
+    let legendNodes: SunburstNode[] = [];
+    if (rootCandidates.length === 1) {
+      legendNodes = (map[rootCandidates[0].id].children ?? []) as SunburstNode[];
+    } else {
+      legendNodes = rootCandidates;
+    }
+
+    // Helper to roll up values for a node (sum of descendants) for sorting
+    const rollup = (n: SunburstNode): number => {
+      if (!n.children || n.children.length === 0) {
+        return n.value || 0;
+      }
+      let sum = n.value || 0;
+      for (const c of n.children) {
+        sum += rollup(c);
+      }
+      return sum;
+    };
+
+    // If colorscale colors are provided, assign them directly
+    if (hasColorscale && colorscaleColors && Array.isArray(colorscaleColors)) {
+      const ids = first.ids ?? [];
+      // Create a complete color mapping for all IDs using the colorscale colors
+      for (let i = 0; i < ids.length && i < colorscaleColors.length; i++) {
+        console.log('***********************');
+        if (map[ids[i]] && colorscaleColors[i] !== null) {
+          console.log('Assigning colorscale color:', ids[i]);
+          console.log(
+            'color values = ',
+            first.marker?.colors && isArrayOrTypedArray(first.marker?.colors) && (first.marker?.colors as Color[])[i],
+          );
+          map[ids[i]].color =
+            first.marker?.colors &&
+            isArrayOrTypedArray(first.marker?.colors) &&
+            (first.marker?.colors as Color[])[i] === null
+              ? '#000000'
+              : colorscaleColors[i]!;
+        }
+      }
+    } else if (Array.isArray(first.marker?.colors)) {
+      const ids = first.ids ?? [];
+      // Create a complete color mapping for all IDs using resolveColor
+      for (let i = 0; i < ids.length; i++) {
+        console.log('########################');
+        if (map[ids[i]]) {
+          map[ids[i]].color =
+            first.marker?.color &&
+            isArrayOrTypedArray(first.marker?.color) &&
+            (first.marker?.color as Color[])[i] === null
+              ? '#000000'
+              : resolveColor(colors, i, ids[i], colorMap, isDarkTheme);
+        }
+      }
+    }
+
+    // Sort legend nodes by rolled-up value (desc) to stabilize color assignment when using colorway
+    // This happens AFTER color assignment from marker.colors to preserve id-to-color mapping
+    legendNodes.sort((a, b) => rollup(b) - rollup(a));
+
+    // Assign colors by depth using colorway so that root has one color and children have different colors.
+    // Deterministic order per depth: sort labels by rolled-up value (desc), then assign colorway in that order.
+    // Only run this if we don't have explicit marker colors or colorscale colors (which would have been assigned above)
+    // Also run if no nodes have been assigned colors yet (fallback scenario), BUT skip if colorscale will handle colors
+    // SKIP this to allow hierarchical tonal colors to be assigned later in the fallback tree logic
+    const hasAnyNodeColors = Object.values(map).some(node => node.color);
+    // Disable categorical assignment for now to let hierarchical tonal logic handle it
+    if (
+      false &&
+      ((colors && !Array.isArray(first.marker?.colors) && !hasColorscale) || (!hasAnyNodeColors && !hasColorscale))
+    ) {
+      // Determine which depth is the first visible ring (legend level)
+      const legendDepth = rootCandidates.length === 1 ? 1 : 0; // children of single root OR root level when multiple roots
+
+      // Build a traversal root (virtual when multiple roots)
+      const traversalRoot: SunburstNode =
+        rootCandidates.length === 1
+          ? map[rootCandidates[0].id]
+          : { id: 'root', label: 'Root', value: 0, children: rootCandidates };
+
+      // Ensure values are rolled up for ordering
+      const rollupTree = (n: SunburstNode): number => {
+        if (!n.children || n.children.length === 0) {
+          return n.value || 0;
+        }
+        let s = n.value || 0;
+        for (const c of n.children) {
+          s += rollupTree(c);
+        }
+        n.value = s;
+        return s;
+      };
+      rollupTree(traversalRoot);
+
+      // Collect first-appearance order by label for each depth (DFS preserves input child order)
+      const orderByDepth = new Map<number, string[]>();
+      const seenByDepth = new Map<number, Set<string>>();
+      const dfsCollect = (node: SunburstNode, depth: number) => {
+        const label = node.label ?? node.id;
+        const seen = seenByDepth.get(depth) || new Set<string>();
+        const order = orderByDepth.get(depth) || [];
+        if (!seen.has(label)) {
+          seen.add(label);
+          order.push(label);
+        }
+        seenByDepth.set(depth, seen);
+        orderByDepth.set(depth, order);
+        (node.children || []).forEach(c => dfsCollect(c, depth + 1));
+      };
+      dfsCollect(traversalRoot, 0);
+
+      // Build color maps per depth (skip legendDepth which is uniform)
+      const colorMapPerDepth = new Map<number, Map<string, string>>();
+      orderByDepth.forEach((labels, depth) => {
+        if (depth === legendDepth) {
+          return;
+        }
+        const cmap = new Map<string, string>();
+        labels.forEach((label, idx) => {
+          cmap.set(label, resolveColor(colors, idx, label, colorMap, isDarkTheme));
+        });
+        colorMapPerDepth.set(depth, cmap);
+      });
+
+      // Assign colors: legendDepth gets different colors from colorway; others use per-depth label mapping.
+      const dfsAssign = (node: SunburstNode, depth: number) => {
+        if (!node.color) {
+          if (depth === legendDepth) {
+            // Each legend-level node gets a different color from the colorway
+            const legendNodes = orderByDepth.get(depth) || [];
+            const nodeLabel = node.label ?? node.id;
+            const colorIndex = legendNodes.indexOf(nodeLabel);
+            node.color = resolveColor(colors, colorIndex >= 0 ? colorIndex : 0, nodeLabel, colorMap, isDarkTheme);
+          } else {
+            const label = node.label ?? node.id;
+            const cmap = colorMapPerDepth.get(depth);
+            if (cmap && cmap.has(label)) {
+              node.color = cmap.get(label)!;
+            }
+          }
+        }
+        (node.children || []).forEach(c => dfsAssign(c, depth + 1));
+      };
+      dfsAssign(traversalRoot, 0);
+    }
+
+    if (rootCandidates.length === 1) {
+      return map[rootCandidates[0].id];
+    }
+
+    // For Plotly-style sunburst, multiple roots should start from center
+    // Don't create a virtual root - instead return a pseudo-root that represents the center
+    // This allows each true root (A, B, C) to start from depth 0 at the center
+    return {
+      id: '__plotly_center__',
+      label: '',
+      value: rootCandidates.reduce((sum, r) => sum + (r.value || 0), 0),
+      children: rootCandidates,
+    };
+  };
+
+  const { chartTitle } = getTitles(input.layout);
+
+  // Create data object with marker colors when available
+  const dataObject: any = {
+    flat,
+    chartTitle,
+  };
+
+  // Add marker colors if available for the base component to use
+  console.log('[COLORSCALE DEBUG] About to check if colorscale assignment condition...');
+  console.log('[COLORSCALE DEBUG] hasColorscale:', hasColorscale);
+  console.log('[COLORSCALE DEBUG] colorscaleColors exists:', !!colorscaleColors);
+  console.log('[COLORSCALE DEBUG] colorscaleColors length:', colorscaleColors?.length);
+  console.log('[COLORSCALE DEBUG] colorscaleColors sample:', colorscaleColors?.slice(0, 5));
+
+  if (hasColorscale && colorscaleColors) {
+    console.log('[COLORSCALE DEBUG] ENTERING COLORSCALE ASSIGNMENT!');
+    // For colorscale, assign colors directly to tree nodes based on the colorscale mapping
+    flat.marker = flat.marker || {};
+    // IMPORTANT: Set the colorscale colors in flat.marker.colors for the component to use
+    flat.marker.colors = colorscaleColors.map(c => c || '#000000'); // Convert nulls to black
+    console.log('[COLORSCALE DEBUG] Set flat.marker.colors from colorscaleColors:', flat.marker.colors.slice(0, 10));
+
+    // Preserve the original marker colors array (including nulls) so we can distinguish nulls (should become black)
+    const originalMarkerColors: any[] | undefined = Array.isArray(first.marker?.colors)
+      ? (first.marker!.colors as any[])
+      : undefined;
+    // Keep a copy on flat.marker.colors to prevent later synthesis from overwriting nulls with palette values
+    if (originalMarkerColors) {
+      // Keep as any[] so we can retain null values
+      (flat.marker as any).colors = originalMarkerColors.map(v => (v === null ? null : String(v)));
+    }
+    // Build root used for color stamping
+    dataObject.root = buildColorStampedRoot();
+
+    // Assign colorscale colors to tree nodes
+    if (dataObject.root) {
+      console.log('[COLORSCALE DEBUG] Assigning colors to tree nodes...');
+      console.log('[COLORSCALE DEBUG] dataObject.root exists:', !!dataObject.root);
+      console.log('[COLORSCALE DEBUG] colorscaleColors length:', colorscaleColors?.length);
+
+      const assignColorscaleColors = (node: any, depth: number) => {
+        if (!node) return;
+
+        console.log('[COLORSCALE DEBUG] Processing node:', node.id, 'at depth:', depth);
+
+        // Find the color for this node based on its ID
+        const idIndex = flat.ids.indexOf(node.id);
+        console.log('[COLORSCALE DEBUG] Node ID:', node.id, 'Index:', idIndex);
+
+        if (idIndex >= 0 && colorscaleColors) {
+          const originalVal = originalMarkerColors ? originalMarkerColors[idIndex] : undefined;
+          if (originalVal === null) {
+            // Explicit null in schema -> force black
+            node.color = '#000000';
+            console.log('[COLORSCALE DEBUG] Assigned BLACK for null schema value at node:', node.id);
+          } else if (colorscaleColors[idIndex]) {
+            const assignedColor = colorscaleColors[idIndex];
+            node.color = assignedColor;
+            console.log('[COLORSCALE DEBUG] Assigning colorscale color:', assignedColor, 'to node:', node.id);
+          } else {
+            console.log('[COLORSCALE DEBUG] colorscaleColors entry missing for node (will fallback later):', node.id);
+          }
+        }
+
+        if (node.children) {
+          node.children.forEach((c: any) => assignColorscaleColors(c, depth + 1));
+        }
+      };
+      assignColorscaleColors(dataObject.root, 0);
+      console.log('[COLORSCALE DEBUG] Finished assigning colors to tree nodes');
+    }
+  } else if (Array.isArray(first.marker?.colors) && !(hasColorscale && colorscaleColors)) {
+    // Only process raw marker colors if we haven't already processed colorscale colors
+    flat.marker = flat.marker || {};
+    flat.marker.colors = first.marker.colors.map(c => String(c));
+    console.log(
+      '[COLORSCALE DEBUG] Using raw marker.colors (no colorscale processing):',
+      flat.marker.colors.slice(0, 5),
+    );
+  } else {
+    // Only use custom root when no explicit colors
+    dataObject.root = buildColorStampedRoot();
+  }
+
+  // Track whether we had original marker colors before any synthesis
+  const hadOriginalMarkerColors = Array.isArray(first.marker?.colors);
+  console.log('[FALLBACK DEBUG] hadOriginalMarkerColors:', hadOriginalMarkerColors);
+  console.log('[FALLBACK DEBUG] hasColorscale:', hasColorscale);
+  console.log('[FALLBACK DEBUG] colorscaleColors exists:', !!colorscaleColors);
+
+  // Fallback: if marker colors are still missing or contain falsy entries, synthesize them from colorway
+  if (!flat.marker?.colors && !(hasColorscale && colorscaleColors)) {
+    const synthesized = (flat.ids || []).map((id, i) =>
+      resolveColor(colors, i, id || String(i), colorMap, isDarkTheme),
+    );
+    if (synthesized.length) {
+      flat.marker = flat.marker || {};
+      flat.marker.colors = synthesized;
+      console.log('[Sunburst Fallback] Synthesized marker.colors from colorway. Sample:', synthesized.slice(0, 8));
+    }
+  } else if (flat.marker && Array.isArray((flat.marker as any).colors)) {
+    // Replace any empty/undefined colors with resolved fallback, but preserve null values for colorscale handling
+    let mutated = false;
+    const arr = (flat.marker as any).colors as any[];
+    for (let i = 0; i < arr.length; i++) {
+      // Only replace undefined/empty values, but keep null values as they indicate intermediate nodes
+      if (arr[i] !== null && !arr[i]) {
+        arr[i] = resolveColor(colors, i, flat.ids?.[i] || String(i), colorMap, isDarkTheme);
+        mutated = true;
+      }
+    }
+    if (mutated) {
+      console.log('[Sunburst Fallback] Patched undefined marker.colors entries (preserved null values).');
+    }
+  }
+
+  // If we have a root tree ensure every node in the tree has a concrete color; assign depth-based fallback.
+  if (dataObject.root) {
+    console.log('[FALLBACK DEBUG] Starting fallback color assignment...');
+    const palette = Array.isArray(colors) ? colors : ([] as string[]);
+    let paletteLen = Array.isArray(palette) ? (palette as any).length : 0;
+    console.log('[FALLBACK DEBUG] Palette length:', paletteLen);
+
+    // Hierarchical tonal mode: no explicit marker.colors & no colorscale -> mimic Plotly behavior of
+    // same base hue per top-level branch with progressively lighter shades for deeper depths.
+    const hierarchicalTonalMode = !hadOriginalMarkerColors && !(hasColorscale && colorscaleColors) && paletteLen > 0;
+    if (hierarchicalTonalMode) {
+      console.log('[FALLBACK DEBUG] Hierarchical tonal mode ENABLED');
+    }
+
+    const lightenColor = (hex: string, factor: number): string => {
+      if (!/^#?[0-9a-fA-F]{6}$/.test(hex)) return hex; // keep original if unexpected
+      const h = hex.replace('#', '');
+      const r = parseInt(h.slice(0, 2), 16);
+      const g = parseInt(h.slice(2, 4), 16);
+      const b = parseInt(h.slice(4, 6), 16);
+      const lr = Math.round(r + (255 - r) * factor);
+      const lg = Math.round(g + (255 - g) * factor);
+      const lb = Math.round(b + (255 - b) * factor);
+      return '#' + [lr, lg, lb].map(v => v.toString(16).padStart(2, '0')).join('');
+    };
+
+    // For hierarchical mode we assign a base color per root (depth 1 under pseudo-center) sequentially from palette.
+    let nextRootIndex = 0;
+
+    const assignTreeColors = (node: any, depth: number) => {
+      if (!node) return;
+
+      console.log('[FALLBACK DEBUG] Processing node:', node.id, 'existing color:', node.color, 'depth:', depth);
+
+      if (!node.color) {
+        console.log('[FALLBACK DEBUG] Node has no color, assigning fallback...');
+
+        // Check if this node has a null value in marker.colors (intermediate node)
+        const idIndex = flat.ids ? flat.ids.indexOf(node.id) : -1;
+        const isIntermediateNode =
+          idIndex >= 0 && flat.marker?.colors && (flat.marker.colors as any[])[idIndex] === null;
+
+        if (isIntermediateNode) {
+          // For intermediate nodes with null marker.colors, use black color
+          console.log('[FALLBACK DEBUG] Assigning black color to intermediate node:', node.id);
+          node.color = '#000000';
+        } else if (hierarchicalTonalMode) {
+          // Determine root-relative depth (depth 0 may be pseudo-center)
+          const isPseudoCenter = node.id === '__plotly_center__';
+          if (isPseudoCenter) {
+            node.color = '#000000'; // center black
+          } else {
+            // Check if this is a root branch (no parent or parent is pseudo-center or empty parent)
+            const nodeIndex = flat.ids ? flat.ids.indexOf(node.id) : -1;
+            const nodeParent = nodeIndex >= 0 && flat.parents ? flat.parents[nodeIndex] : null;
+            const isRootBranch = !nodeParent || nodeParent === '' || node.parent?.id === '__plotly_center__';
+
+            if (isRootBranch) {
+              // Root branch: assign base palette color
+              const base = palette[nextRootIndex % paletteLen];
+              nextRootIndex++;
+              node.color = base;
+              (node as any).__rootBase__ = base;
+              console.log('[FALLBACK DEBUG] Assigned root color:', base, 'to:', node.id);
+            } else {
+              // Find ancestor root base color by walking up .parent chain
+              let ancestor = node.parent;
+              let rootBase: string | undefined;
+              let hops = 0;
+              while (ancestor && !rootBase && hops < 10) {
+                // safety bound
+                if (ancestor.__rootBase__) rootBase = ancestor.__rootBase__;
+                ancestor = ancestor.parent;
+                hops++;
+              }
+              if (!rootBase) {
+                // Fallback: use next palette color if somehow base not found
+                rootBase = palette[nextRootIndex % paletteLen];
+                console.log('[FALLBACK DEBUG] Could not find root base, using fallback:', rootBase);
+              }
+              const relativeDepth = depth - 1; // 0 = root branch, 1 = children, ...
+              const factor = Math.min(0.2 * relativeDepth, 0.7); // cap lightening
+              node.color = lightenColor(rootBase, factor);
+              console.log('[FALLBACK DEBUG] Lightened color for depth', depth, ':', node.color, 'from base:', rootBase);
+            }
+          }
+        } else if (paletteLen) {
+          const fallbackColor = resolveColor(palette, depth, node.label || node.id, colorMap, isDarkTheme);
+          console.log('[FALLBACK DEBUG] Assigning palette color:', fallbackColor, 'to node:', node.id);
+          node.color = fallbackColor;
+        } else if (flat.marker?.colors && flat.ids) {
+          const idx = flat.ids.indexOf(node.id);
+          if (idx >= 0) {
+            const markerColor = (flat.marker.colors as string[])[idx];
+            console.log('[FALLBACK DEBUG] Assigning marker color:', markerColor, 'to node:', node.id);
+            node.color = markerColor;
+          }
+        }
+      } else {
+        console.log('[FALLBACK DEBUG] Node already has color:', node.color, '- keeping it');
+      }
+
+      if (node.children) node.children.forEach((c: any) => assignTreeColors(c, depth + 1));
+    };
+    assignTreeColors(dataObject.root, 0);
+    console.log('[FALLBACK DEBUG] Finished fallback color assignment');
+  }
+
+  // Calculate appropriate levelThickness to ensure all layers are visible
+  // Find the maximum depth in the data
+  let maxDepth = 0;
+  if (flat.ids.length > 0) {
+    // Build depth map
+    const depthMap: Record<string, number> = {};
+    const calculateDepth = (id: string): number => {
+      if (depthMap[id] !== undefined) {
+        return depthMap[id];
+      }
+      const index = flat.ids.indexOf(id);
+      const parent = flat.parents[index];
+      if (!parent) {
+        depthMap[id] = 0;
+        return 0;
+      }
+      const parentDepth = calculateDepth(parent);
+      depthMap[id] = parentDepth + 1;
+      return parentDepth + 1;
+    };
+
+    flat.ids.forEach(id => {
+      const depth = calculateDepth(id);
+      if (depth > maxDepth) {
+        maxDepth = depth;
+      }
+    });
+  }
+
+  // Calculate available radius considering margins
+  const width = input.layout?.width || 300;
+  const height = input.layout?.height || 300;
+  const hideLabels = first.textinfo ? !['value', 'percent', 'label+percent'].includes(first.textinfo as string) : true;
+  const marginHorizontal = hideLabels ? 0 : 80;
+  const marginVertical = hideLabels ? 0 : 40;
+  const availableRadius = Math.min(width - marginHorizontal, height - marginVertical) / 2;
+
+  // Calculate levelThickness to fit all layers (add 1 to maxDepth for total layers)
+  const totalLayers = maxDepth + 1;
+  // Ensure we have enough space for all layers by calculating thickness that fits within available radius
+  const calculatedLevelThickness = totalLayers > 0 ? Math.floor(availableRadius / totalLayers) : 40;
+  // Ensure minimum thickness of 15 for visibility, but prioritize fitting all layers
+  const levelThickness = Math.max(15, calculatedLevelThickness);
+
+  // Debug: Final check before returning props
+  let effectiveBranchValues = first.branchvalues || ('remainder' as 'total' | 'remainder');
+
+  // If branchvalues is not explicitly set, infer it from the data structure
+  // In Plotly sunburst, if there are parent nodes with value 0, it typically uses remainder mode
+  if (!effectiveBranchValues) {
+    const hasParentNodesWithZeroValue = flat.ids.some((id, i) => {
+      const value = i < flat.values.length ? flat.values[i] : 0;
+      const hasChildren = flat.ids.some(childId => flat.parents[flat.ids.indexOf(childId)] === id);
+      return hasChildren && value === 0;
+    });
+
+    effectiveBranchValues = hasParentNodesWithZeroValue ? 'remainder' : 'total';
+    console.log('=== INFERRED BRANCH VALUES ===');
+    console.log('Inferred branchValues:', effectiveBranchValues, 'based on parent nodes with zero values');
+  }
+
+  if (effectiveBranchValues === 'remainder') {
+    console.log('=== FINAL SUNBURST PROPS ===');
+    console.log('branchValues:', effectiveBranchValues);
+    console.log('data.flat.values sample:', dataObject.flat?.values?.slice(0, 10));
+  }
+  console.log('dataObject = ', dataObject);
+
+  console.log('=== DEPTH CALCULATION DEBUG ===');
+  console.log('calculated maxDepth:', maxDepth);
+  console.log('plotly maxdepth:', (first as any).maxdepth);
+
+  return {
+    data: dataObject,
+    branchValues: effectiveBranchValues,
+    hideLabels,
+    showLabelsInPercent: first.textinfo ? ['percent', 'label+percent'].includes(first.textinfo as string) : false,
+    width: input.layout?.width,
+    height: input.layout?.height,
+    roundCorners: true,
+    legendProps: { canSelectMultipleLegends: true },
+    // Sort segments by value (desc) to assign palette colors deterministically
+    sort: 'desc',
+    levelThickness,
+    // Show all layers as specified in the data
+    maxDepth: (first as any).maxdepth && (first as any).maxdepth > 0 ? (first as any).maxdepth : maxDepth,
+  } as SunburstChartProps;
+};
 export const projectPolarToCartesian = (input: PlotlySchema): PlotlySchema => {
   const projection: PlotlySchema = { ...input };
 

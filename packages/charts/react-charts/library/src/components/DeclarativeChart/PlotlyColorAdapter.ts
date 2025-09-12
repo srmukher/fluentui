@@ -121,6 +121,10 @@ export const extractColor = (
   colorMap: React.MutableRefObject<Map<string, string>>,
   isDarkTheme?: boolean,
 ): string | string[] | undefined => {
+  console.log('colorwayType = ', colorwayType);
+  console.log('colorway = ', colorway);
+  console.log('colors = ', colors);
+  console.log('isDarkTheme = ', isDarkTheme);
   return colorwayType === 'default' && colors ? getSchemaColors(colorway, colors, colorMap, isDarkTheme) : undefined;
 };
 

@@ -14,6 +14,7 @@ export type FluentChart =
   | 'scatter'
   | 'scatterpolar'
   | 'sankey'
+  | 'sunburst'
   | 'table'
   | 'verticalstackedbar'
   | 'gantt';
@@ -424,6 +425,30 @@ const DATA_VALIDATORS_MAP: Record<string, ((data: Data, layout: Partial<Layout> 
       }
     },
   ],
+  sunburst: [
+    data => {
+      const d = data as Partial<PlotData> & {
+        ids?: Array<string>;
+        labels?: Array<string>;
+        parents?: Array<string | null>;
+        values?: Array<number> | { bdata?: number[]; dtype?: string };
+      };
+      const hasIds = Array.isArray(d.ids);
+      const hasLabels = Array.isArray(d.labels);
+      const hasParents = Array.isArray(d.parents);
+      const hasValues = Array.isArray(d.values as any) || (!!d.values && typeof d.values === 'object');
+      if (!(hasIds && hasLabels && hasParents && hasValues)) {
+        throw new Error(`${UNSUPPORTED_MSG_PREFIX} ${data.type}, Invalid or missing ids/labels/parents/values`);
+      }
+      const n = (d.ids as string[]).length;
+      if (!((d.labels as string[]).length === n && (d.parents as any[]).length === n)) {
+        throw new Error(`${UNSUPPORTED_MSG_PREFIX} ${data.type}, Array length mismatch`);
+      }
+      if (Array.isArray(d.values) && (d.values as number[]).length !== n) {
+        throw new Error(`${UNSUPPORTED_MSG_PREFIX} ${data.type}, Array length mismatch`);
+      }
+    },
+  ],
 };
 
 const DEFAULT_CHART_TYPE = '';
@@ -485,6 +510,8 @@ export const mapFluentChart = (input: any): OutputChartType => {
           return { isValid: true, traceIndex, type: 'heatmap' };
         case 'sankey':
           return { isValid: true, traceIndex, type: 'sankey' };
+        case 'sunburst':
+          return { isValid: true, traceIndex, type: 'sunburst' };
         case 'indicator':
         case 'gauge':
           return { isValid: true, traceIndex, type: 'gauge' };

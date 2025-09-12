@@ -8,7 +8,7 @@ import {
   mapFluentChart,
   sanitizeJson,
 } from '@fluentui/chart-utilities';
-import type { GridProperties } from './PlotlySchemaAdapter';
+import { GridProperties, transformPlotlyJsonToSunburstProps } from './PlotlySchemaAdapter';
 import { tokens } from '@fluentui/react-theme';
 import { ThemeContext_unstable as V9ThemeContext } from '@fluentui/react-shared-contexts';
 import { Theme, webLightTheme } from '@fluentui/tokens';
@@ -52,6 +52,7 @@ import { Chart, ImageExportOptions } from '../../types/index';
 import { ScatterChart } from '../ScatterChart/index';
 import { FunnelChart } from '../FunnelChart/FunnelChart';
 import { GanttChart } from '../GanttChart/index';
+import { SunburstChart } from '../SunburstChart/index';
 
 import { withResponsiveContainer } from '../ResponsiveContainer/withResponsiveContainer';
 import { ChartTable } from '../ChartTable/index';
@@ -71,6 +72,7 @@ const ResponsiveVerticalBarChart = withResponsiveContainer(VerticalBarChart);
 const ResponsiveScatterChart = withResponsiveContainer(ScatterChart);
 const ResponsiveChartTable = withResponsiveContainer(ChartTable);
 const ResponsiveGanttChart = withResponsiveContainer(GanttChart);
+// const ResponsiveSunburstChart = withResponsiveContainer(SunburstChart);
 // Removing responsive wrapper for FunnelChart as responsive container is not working with FunnelChart
 //const ResponsiveFunnelChart = withResponsiveContainer(FunnelChart);
 
@@ -234,6 +236,10 @@ type ChartTypeMap = {
     transformer: typeof transformPlotlyJsonToFunnelChartProps;
     renderer: typeof FunnelChart;
   } & PreTransformHooks;
+  sunburst: {
+    transformer: typeof transformPlotlyJsonToSunburstProps;
+    renderer: typeof SunburstChart;
+  } & PreTransformHooks;
   fallback: {
     transformer: typeof transformPlotlyJsonToVSBCProps;
     renderer: typeof ResponsiveVerticalStackedBarChart;
@@ -303,6 +309,10 @@ const chartMap: ChartTypeMap = {
   funnel: {
     transformer: transformPlotlyJsonToFunnelChartProps,
     renderer: FunnelChart,
+  },
+  sunburst: {
+    transformer: transformPlotlyJsonToSunburstProps,
+    renderer: SunburstChart,
   },
   fallback: {
     transformer: transformPlotlyJsonToVSBCProps,
