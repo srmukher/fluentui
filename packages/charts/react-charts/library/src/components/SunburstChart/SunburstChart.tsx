@@ -12,6 +12,8 @@ import { ImageExportOptions } from '../../types/index';
 import { toImage } from '../../utilities/image-export-utils';
 import { Arc } from '../DonutChart/Arc/Arc';
 import { ArcData } from '../DonutChart/Arc/Arc.types';
+import { scaleLinear as d3ScaleLinear } from 'd3-scale';
+import { rgb } from 'd3-color';
 
 const MIN_LEGEND_CONTAINER_HEIGHT = 40;
 
@@ -213,17 +215,10 @@ export const SunburstChart: React.FunctionComponent<SunburstChartProps> = React.
     branchValues: props.branchValues || 'remainder',
   });
 
-  console.log('=== SEGMENTS DEPTH DEBUG ===');
-  console.log('total segments:', segments.length);
   const depthCounts: Record<number, number> = {};
   segments.forEach(seg => {
     depthCounts[seg.depth] = (depthCounts[seg.depth] || 0) + 1;
   });
-  console.log('segments by depth:', depthCounts);
-  console.log('props.maxDepth:', props.maxDepth);
-
-  // Extract pattern colors from marker.colors for pattern rendering
-  const patternColors = _extractPatternColors(props.data);
 
   // Build legend color mapping
   const legendColorMap: Record<string, string> = {};
@@ -290,27 +285,6 @@ export const SunburstChart: React.FunctionComponent<SunburstChartProps> = React.
 
   const activeArc = _expandHighlightedLegends(_getHighlightedLegend(), nodes);
 
-  function _extractPatternColors(data: typeof props.data): string[] {
-    if (data.flat?.marker?.colors && Array.isArray(data.flat.marker.colors)) {
-      const markerColors = data.flat.marker.colors;
-      const patternShapes = data.flat.marker?.pattern?.shape;
-
-      if (patternShapes && Array.isArray(patternShapes)) {
-        const uniquePatternColors = new Set<string>();
-        for (let i = 0; i < patternShapes.length && i < markerColors.length; i++) {
-          const shape = patternShapes[i];
-          if (shape && shape !== '' && shape !== 'none') {
-            uniquePatternColors.add(markerColors[i]);
-          }
-        }
-        return Array.from(uniquePatternColors);
-      } else {
-        return [];
-      }
-    }
-    return [];
-  }
-
   function _shouldHavePattern(index: number, data: typeof props.data): boolean {
     const patternShapes = data.flat?.marker?.pattern?.shape;
     if (Array.isArray(patternShapes)) {
@@ -345,25 +319,25 @@ export const SunburstChart: React.FunctionComponent<SunburstChartProps> = React.
             height={6}
             patternTransform="rotate(45)"
           >
-            <rect x={0} y={0} width={6} height={6} fill="#ffffff" />
-            <line x1={0} y1={0} x2={0} y2={6} stroke={color} strokeWidth={2} />
+            <rect x={0} y={0} width={6} height={6} fill={color} />
+            <line x1={0} y1={0} x2={0} y2={6} stroke="#ffffff" strokeWidth={2} />
           </pattern>
         );
 
       case 'x':
         return (
           <pattern key={key} id={patternId} patternUnits="userSpaceOnUse" width={8} height={8}>
-            <rect x={0} y={0} width={8} height={8} fill="#ffffff" />
-            <line x1={0} y1={0} x2={8} y2={8} stroke={color} strokeWidth={1.5} />
-            <line x1={0} y1={8} x2={8} y2={0} stroke={color} strokeWidth={1.5} />
+            <rect x={0} y={0} width={8} height={8} fill={color} />
+            <line x1={0} y1={0} x2={8} y2={8} stroke="#ffffff" strokeWidth={1.5} />
+            <line x1={0} y1={8} x2={8} y2={0} stroke="#ffffff" strokeWidth={1.5} />
           </pattern>
         );
 
       case '.':
         return (
           <pattern key={key} id={patternId} patternUnits="userSpaceOnUse" width={8} height={8}>
-            <rect x={0} y={0} width={8} height={8} fill="#ffffff" />
-            <circle cx={4} cy={4} r={1.5} fill={color} />
+            <rect x={0} y={0} width={8} height={8} fill={color} />
+            <circle cx={4} cy={4} r={1.5} fill="#ffffff" />
           </pattern>
         );
 
@@ -377,27 +351,35 @@ export const SunburstChart: React.FunctionComponent<SunburstChartProps> = React.
             height={6}
             patternTransform="rotate(-45)"
           >
-            <rect x={0} y={0} width={6} height={6} fill="#ffffff" />
-            <line x1={0} y1={0} x2={0} y2={6} stroke={color} strokeWidth={2} />
+            <rect x={0} y={0} width={6} height={6} fill={color} />
+            <line x1={0} y1={0} x2={0} y2={6} stroke="#ffffff" strokeWidth={2} />
           </pattern>
         );
 
       case '|':
         return (
           <pattern key={key} id={patternId} patternUnits="userSpaceOnUse" width={6} height={6}>
-            <rect x={0} y={0} width={6} height={6} fill="#ffffff" />
-            <line x1={3} y1={0} x2={3} y2={6} stroke={color} strokeWidth={2} />
+            <rect x={0} y={0} width={6} height={6} fill={color} />
+            <line x1={3} y1={0} x2={3} y2={6} stroke="#ffffff" strokeWidth={2} />
           </pattern>
         );
 
       case '-':
         return (
           <pattern key={key} id={patternId} patternUnits="userSpaceOnUse" width={6} height={6}>
-            <rect x={0} y={0} width={6} height={6} fill="#ffffff" />
-            <line x1={0} y1={3} x2={6} y2={3} stroke={color} strokeWidth={2} />
+            <rect x={0} y={0} width={6} height={6} fill={color} />
+            <line x1={0} y1={3} x2={6} y2={3} stroke="#ffffff" strokeWidth={2} />
           </pattern>
         );
 
+      case '+':
+        return (
+          <pattern key={key} id={patternId} patternUnits="userSpaceOnUse" width={8} height={8}>
+            <rect x={0} y={0} width={8} height={8} fill={color} />
+            <line x1={4} y1={0} x2={4} y2={8} stroke="#ffffff" strokeWidth={1.5} />
+            <line x1={0} y1={4} x2={8} y2={4} stroke="#ffffff" strokeWidth={1.5} />
+          </pattern>
+        );
       default:
         return (
           <pattern
@@ -408,8 +390,8 @@ export const SunburstChart: React.FunctionComponent<SunburstChartProps> = React.
             height={6}
             patternTransform="rotate(45)"
           >
-            <rect x={0} y={0} width={6} height={6} fill="#ffffff" />
-            <line x1={0} y1={0} x2={0} y2={6} stroke={color} strokeWidth={2} />
+            <rect x={0} y={0} width={6} height={6} fill={color} />
+            <line x1={0} y1={0} x2={0} y2={6} stroke="#ffffff" strokeWidth={2} />
           </pattern>
         );
     }
@@ -488,31 +470,108 @@ export const SunburstChart: React.FunctionComponent<SunburstChartProps> = React.
       <div className={classes.chartWrapper}>
         <svg className={classes.chart} aria-label={props.data.chartTitle} width={_width} height={_height}>
           <g transform={`translate(${centerX},${centerY})`}>
-            {/* Pattern defs: one per unique color+shape combination that needs patterns */}
-            {patternColors &&
-              patternColors.length > 0 &&
-              (() => {
-                const neededPatterns = new Set<string>();
-                segments.forEach((seg, i) => {
-                  const originalDataIndex = _getOriginalDataIndex(seg, props.data);
-                  if (_shouldHavePattern(originalDataIndex, props.data)) {
-                    const color = resolveColor(seg, i, props, nodes, legendColorMap);
-                    const shape = _getPatternShape(originalDataIndex, props.data);
-                    const patternKey = `${color}-${shape}`;
-                    neededPatterns.add(patternKey);
-                  }
-                });
+            {/* DEBUG: Check if we have pattern data */}
+            {(() => {
+              const flatData = (props.data as any).flat;
+              return null;
+            })()}
 
-                return (
-                  <defs>
-                    {Array.from(neededPatterns).map((patternKey: string) => {
-                      const [color, shape] = patternKey.split('-');
-                      const patternId = `sbPattern-${color.replace('#', '')}-${shape}`;
-                      return _generatePatternDef(patternId, color, shape);
-                    })}
-                  </defs>
-                );
-              })()}
+            {/* Pattern definitions based on schema data */}
+            <defs>
+              {segments
+                .map((seg, index) => {
+                  const segColor = resolveColor(seg, index, props, nodes, legendColorMap);
+                  const nodeId = seg.node.id;
+                  const flatData = (props.data as any).flat;
+                  let patternShape: string | undefined;
+
+                  // Use the same logic as in pattern usage to ensure consistency
+                  const patterns = flatData?.patterns || flatData?.marker?.patterns || flatData?.marker?.pattern?.shape;
+
+                  if (patterns && flatData?.ids) {
+                    const nodeIndex = flatData.ids.indexOf(nodeId);
+                    if (nodeIndex >= 0 && patterns[nodeIndex]) {
+                      patternShape = patterns[nodeIndex];
+                    }
+                  }
+
+                  if (!patternShape) return null;
+
+                  const safeNodeId = nodeId.replace(/[^a-zA-Z0-9-_]/g, '_'); // Replace invalid CSS ID characters
+                  const patternId = `pattern_${safeNodeId}_${patternShape.replace(/[^a-zA-Z0-9-_]/g, '_')}`;
+
+                  switch (patternShape) {
+                    case '/':
+                      return (
+                        <pattern
+                          key={patternId}
+                          id={patternId}
+                          patternUnits="userSpaceOnUse"
+                          width="8"
+                          height="8"
+                          patternTransform="rotate(45)"
+                        >
+                          <rect x="0" y="0" width="8" height="8" fill={segColor} />
+                          <line x1="0" y1="0" x2="0" y2="8" stroke="white" strokeWidth="2" />
+                        </pattern>
+                      );
+                    case 'x':
+                      return (
+                        <pattern key={patternId} id={patternId} patternUnits="userSpaceOnUse" width="10" height="10">
+                          <rect x="0" y="0" width="10" height="10" fill={segColor} />
+                          <line x1="2" y1="2" x2="8" y2="8" stroke="white" strokeWidth="1.5" />
+                          <line x1="8" y1="2" x2="2" y2="8" stroke="white" strokeWidth="1.5" />
+                        </pattern>
+                      );
+                    case '+':
+                      return (
+                        <pattern key={patternId} id={patternId} patternUnits="userSpaceOnUse" width="10" height="10">
+                          <rect x="0" y="0" width="10" height="10" fill={segColor} />
+                          <line x1="5" y1="2" x2="5" y2="8" stroke="white" strokeWidth="2" />
+                          <line x1="2" y1="5" x2="8" y2="5" stroke="white" strokeWidth="2" />
+                        </pattern>
+                      );
+                    case '.':
+                      return (
+                        <pattern key={patternId} id={patternId} patternUnits="userSpaceOnUse" width="12" height="12">
+                          <rect x="0" y="0" width="12" height="12" fill={segColor} />
+                          <circle cx="6" cy="6" r="2.5" fill="white" />
+                        </pattern>
+                      );
+                    case '|':
+                      return (
+                        <pattern key={patternId} id={patternId} patternUnits="userSpaceOnUse" width="8" height="8">
+                          <rect x="0" y="0" width="8" height="8" fill={segColor} />
+                          <line x1="4" y1="0" x2="4" y2="8" stroke="white" strokeWidth="2" />
+                        </pattern>
+                      );
+                    case '-':
+                      return (
+                        <pattern key={patternId} id={patternId} patternUnits="userSpaceOnUse" width="8" height="8">
+                          <rect x="0" y="0" width="8" height="8" fill={segColor} />
+                          <line x1="0" y1="4" x2="8" y2="4" stroke="white" strokeWidth="2" />
+                        </pattern>
+                      );
+                    case '\\':
+                      return (
+                        <pattern
+                          key={patternId}
+                          id={patternId}
+                          patternUnits="userSpaceOnUse"
+                          width="8"
+                          height="8"
+                          patternTransform="rotate(-45)"
+                        >
+                          <rect x="0" y="0" width="8" height="8" fill={segColor} />
+                          <line x1="0" y1="0" x2="0" y2="8" stroke="white" strokeWidth="2" />
+                        </pattern>
+                      );
+                    default:
+                      return null;
+                  }
+                })
+                .filter(Boolean)}
+            </defs>
             {segments.map((seg, i) => {
               const hasChildren = !!(seg.node.children && seg.node.children.length > 0);
               const isRemainderMode = (props.branchValues || 'remainder') === 'remainder';
@@ -534,18 +593,36 @@ export const SunburstChart: React.FunctionComponent<SunburstChartProps> = React.
 
               const color = resolveColor(seg, i, props, nodes, legendColorMap);
 
-              let patternId: string | undefined;
-              if (patternColors && patternColors.length > 0) {
-                const originalDataIndex = _getOriginalDataIndex(seg, props.data);
-                const shouldHave = _shouldHavePattern(originalDataIndex, props.data);
+              // Get pattern from schema data - check multiple possible locations
+              const nodeId = seg.node.id;
+              const flatData = (props.data as any).flat;
+              let patternShape: string | undefined;
 
-                if (shouldHave) {
-                  const originalMarkerColor = props.data.flat?.marker?.colors?.[originalDataIndex];
-                  const patternColor = originalMarkerColor || color;
-                  const shape = _getPatternShape(originalDataIndex, props.data);
-                  patternId = `sbPattern-${patternColor.replace('#', '')}-${shape}`;
+              // Check for patterns in different possible locations
+              const patterns = flatData?.patterns || flatData?.marker?.patterns || flatData?.marker?.pattern?.shape;
+
+              if (patterns && flatData?.ids) {
+                const nodeIndex = flatData.ids.indexOf(nodeId);
+                if (nodeIndex >= 0 && patterns[nodeIndex]) {
+                  patternShape = patterns[nodeIndex];
                 }
               }
+
+              // Use the specific pattern ID we generated with safe CSS ID, but also add fallback
+              const safeNodeId = nodeId.replace(/[^a-zA-Z0-9-_]/g, '_'); // Replace invalid CSS ID characters
+              let finalColor = color; // Default to solid color
+              let patternId: string | undefined;
+
+              if (patternShape) {
+                patternId = `pattern_${safeNodeId}_${patternShape.replace(/[^a-zA-Z0-9-_]/g, '_')}`;
+                // Use pattern URL - Arc component will handle fallback to solid color if pattern fails to render
+                finalColor = `url(#${patternId})`;
+                console.log(`[PATTERN DEBUG] Using pattern URL: ${finalColor} for segment ${nodeId}`);
+              }
+
+              console.log(
+                `[ARC COLOR FINAL] Segment ${i} (${nodeId}): originalColor=${color}, patternShape=${patternShape}, safeNodeId=${safeNodeId}, patternId=${patternId}, finalColor=${finalColor}`,
+              );
 
               const arcPoint: ChartDataPoint = {
                 data: seg.value,
@@ -572,7 +649,7 @@ export const SunburstChart: React.FunctionComponent<SunburstChartProps> = React.
                   data={arcData}
                   innerRadius={Math.max(0, depthInner)}
                   outerRadius={Math.max(0, depthOuter)}
-                  color={patternId ? `url(#${patternId})` : color}
+                  color={finalColor}
                   hoverOnCallback={_hoverCallback}
                   onFocusCallback={_focusCallback}
                   hoverLeaveCallback={_hoverLeave}
@@ -631,32 +708,313 @@ function buildTree(data: SunburstChartProps['data']): {
   root: SunburstNode;
   nodes: Array<SunburstNode & { depth: number; parentId?: string | null }>;
 } {
-  if (data.root) {
-    const nodes: Array<SunburstNode & { depth: number; parentId?: string | null }> = [];
-    const dfs = (n: SunburstNode, depth: number, parentId?: string | null) => {
-      nodes.push({
-        id: n.id,
-        label: n.label,
-        value: n.value,
-        children: n.children,
-        color: n.color,
-        depth,
-        parentId,
+  console.log('[BUILD TREE DEBUG] buildTree called with data:', data);
+
+  if ((data as any).root) {
+    console.log('[BUILD TREE DEBUG] Taking root path, root data:', (data as any).root);
+
+    // Check if we also have flat data with colorscale information
+    if ((data as any).flat?.marker?.colors) {
+      console.log('[BUILD TREE DEBUG] Root path but flat data exists, processing colors from flat data');
+
+      // Extract colorscale for root data using flat data colors
+      let colorscale: Array<[number, string]> | undefined;
+
+      // Check if colorscale is provided in the data structure
+      if ((data as any).colorscale) {
+        colorscale = (data as any).colorscale as Array<[number, string]>;
+        console.log('[COLORSCALE DEBUG] Found colorscale in root data:', colorscale);
+      } else {
+        console.log('[COLORSCALE DEBUG] No colorscale provided in root data');
+      }
+
+      // Process marker colors from flat data
+      const rawColors = (data as any).flat.marker.colors;
+      console.log('[COLORSCALE DEBUG] Raw marker colors from flat data in root path:', rawColors.slice(0, 10));
+
+      // Convert string numeric values to numbers and find min/max for normalization
+      const numericValues = rawColors.map((c: any) => {
+        if (c === null || c === undefined) return 0;
+        const num = typeof c === 'string' ? parseFloat(c) : c;
+        return isNaN(num) ? 0 : num;
       });
-      (n.children || []).forEach(c => dfs(c, depth + 1, n.id));
-    };
-    dfs(data.root, 0, null);
-    return { root: data.root, nodes };
+
+      const validValues = numericValues.filter((v: number) => !isNaN(v) && isFinite(v));
+      const minValue = Math.min(...validValues);
+      const maxValue = Math.max(...validValues);
+      console.log('[COLORSCALE DEBUG] Root path value range: min =', minValue, 'max =', maxValue);
+
+      // Convert raw values to colors using the colorscale
+      const colorResults = numericValues.map((value: number) => {
+        if (isNaN(value) || !isFinite(value) || !colorscale) {
+          return undefined; // No color interpolation if no colorscale or invalid value
+        }
+
+        // Normalize value to [0,1] range based on data min/max
+        const normalizedValue = maxValue > minValue ? (value - minValue) / (maxValue - minValue) : 0;
+        return interpolateColor(normalizedValue, colorscale);
+      });
+
+      // Filter out undefined values
+      const markerColors = colorResults.filter((color: string | undefined): color is string => color !== undefined);
+
+      console.log('[COLORSCALE DEBUG] Generated colors from root path:', markerColors?.slice(0, 10));
+
+      // Apply colors to the tree nodes by matching IDs
+      const applyColorsToTree = (node: SunburstNode, flatData: any): SunburstNode => {
+        const flatIndex = flatData.ids.indexOf(node.id);
+        const color = flatIndex >= 0 && flatIndex < markerColors.length ? markerColors[flatIndex] : undefined;
+
+        return {
+          ...node,
+          color: color || node.color,
+          children: node.children?.map(child => applyColorsToTree(child, flatData)),
+        };
+      };
+
+      const coloredRoot = applyColorsToTree((data as any).root, (data as any).flat);
+      console.log('[COLORSCALE DEBUG] Applied colors to root tree');
+
+      const nodes: Array<SunburstNode & { depth: number; parentId?: string | null }> = [];
+      const dfs = (n: SunburstNode, depth: number, parentId?: string | null) => {
+        nodes.push({
+          id: n.id,
+          label: n.label,
+          value: n.value,
+          children: n.children,
+          color: n.color,
+          depth,
+          parentId,
+        });
+        (n.children || []).forEach(c => dfs(c, depth + 1, n.id));
+      };
+      dfs(coloredRoot, 0, null);
+      return { root: coloredRoot, nodes };
+    } else {
+      console.log('[BUILD TREE DEBUG] Root path without flat color data');
+      const nodes: Array<SunburstNode & { depth: number; parentId?: string | null }> = [];
+      const dfs = (n: SunburstNode, depth: number, parentId?: string | null) => {
+        nodes.push({
+          id: n.id,
+          label: n.label,
+          value: n.value,
+          children: n.children,
+          color: n.color,
+          depth,
+          parentId,
+        });
+        (n.children || []).forEach(c => dfs(c, depth + 1, n.id));
+      };
+      dfs((data as any).root, 0, null);
+      return { root: (data as any).root, nodes };
+    }
   }
-  if (data.flat) {
-    const markerColors =
-      data.flat.marker && Array.isArray(data.flat.marker.colors) ? data.flat.marker.colors : undefined;
-    const root = flatToTree(data.flat, markerColors);
+  if ((data as any).flat) {
+    console.log('[BUILD TREE DEBUG] Processing flat data structure');
+
+    // For flat data, extract colorscale from the schema if available
+    let colorscale: Array<[number, string]> | undefined;
+
+    // Check if colorscale is provided in the data structure
+    if ((data as any).colorscale) {
+      colorscale = (data as any).colorscale as Array<[number, string]>;
+      console.log('[COLORSCALE DEBUG] Found colorscale in flat data:', colorscale);
+    } else {
+      console.log('[COLORSCALE DEBUG] No colorscale provided in flat data');
+    }
+
+    // Process marker colors if they exist as numeric values
+    let markerColors: string[] | undefined;
+    if ((data as any).flat.marker && Array.isArray((data as any).flat.marker.colors)) {
+      const rawColors = (data as any).flat.marker.colors;
+      console.log('[COLORSCALE DEBUG] Raw marker colors from flat data:', rawColors.slice(0, 10));
+
+      // Convert string numeric values to numbers and find min/max for normalization
+      const numericValues = rawColors.map((c: any) => {
+        if (c === null || c === undefined) return 0;
+        const num = typeof c === 'string' ? parseFloat(c) : c;
+        return isNaN(num) ? 0 : num;
+      });
+
+      const validValues = numericValues.filter((v: number) => !isNaN(v) && isFinite(v));
+      const minValue = Math.min(...validValues);
+      const maxValue = Math.max(...validValues);
+      console.log('[COLORSCALE DEBUG] Flat data value range: min =', minValue, 'max =', maxValue);
+
+      // Convert raw values to colors using the colorscale
+      const colorResults = numericValues.map((value: number) => {
+        if (isNaN(value) || !isFinite(value) || !colorscale) {
+          return undefined; // No color interpolation if no colorscale or invalid value
+        }
+
+        // Normalize value to [0,1] range based on data min/max
+        const normalizedValue = maxValue > minValue ? (value - minValue) / (maxValue - minValue) : 0;
+        console.log('[COLORSCALE DEBUG] Flat data value:', value, 'normalized:', normalizedValue);
+        return interpolateColor(normalizedValue, colorscale);
+      });
+
+      // Filter out undefined values
+      markerColors = colorResults.filter((color: string | undefined): color is string => color !== undefined);
+
+      console.log('[COLORSCALE DEBUG] Generated colors from flat data:', markerColors?.slice(0, 10));
+    }
+
+    const root = flatToTree((data as any).flat, markerColors);
     return buildTree({ root });
   }
+
+  // Handle Plotly.js format: check if data is an array with the first item containing marker.colors
+  if (Array.isArray(data) && data.length > 0 && data[0].marker?.colors) {
+    const plotlyData = data[0];
+
+    // Extract colorscale from the full schema - check multiple possible locations
+    let colorscale: Array<[number, string]> | undefined;
+
+    console.log('[COLORSCALE DEBUG] Checking schema structure for colorscale...');
+    console.log('[COLORSCALE DEBUG] Full data structure:', JSON.stringify(data, null, 2));
+
+    // Check different possible paths for colorscale
+    if ((data as any).layout?.coloraxis?.colorscale) {
+      colorscale = (data as any).layout.coloraxis.colorscale as Array<[number, string]>;
+      console.log('[COLORSCALE DEBUG] Found colorscale in layout.coloraxis.colorscale:', colorscale);
+    } else if ((plotlyData.marker as any)?.colorscale) {
+      colorscale = (plotlyData.marker as any).colorscale as Array<[number, string]>;
+      console.log('[COLORSCALE DEBUG] Found colorscale in marker.colorscale:', colorscale);
+    } else if ((data as any).colorscale) {
+      colorscale = (data as any).colorscale as Array<[number, string]>;
+      console.log('[COLORSCALE DEBUG] Found colorscale in root colorscale:', colorscale);
+    } else if ((plotlyData as any).colorscale) {
+      colorscale = (plotlyData as any).colorscale as Array<[number, string]>;
+      console.log('[COLORSCALE DEBUG] Found colorscale in plotlyData.colorscale:', colorscale);
+    } else {
+      console.log('[COLORSCALE DEBUG] No colorscale found in any expected location');
+    }
+
+    // Extract colors from Plotly.js binary format or array
+    let markerColors: string[] | undefined;
+    if (plotlyData.marker?.colors) {
+      if (typeof plotlyData.marker.colors === 'object' && plotlyData.marker.colors.bdata) {
+        // Handle binary color data (base64 encoded float array)
+        try {
+          const binaryData = atob(plotlyData.marker.colors.bdata);
+          const floatArray = new Float64Array(binaryData.length / 8);
+          for (let i = 0; i < floatArray.length; i++) {
+            const bytes = binaryData.slice(i * 8, (i + 1) * 8);
+            const view = new DataView(new ArrayBuffer(8));
+            for (let j = 0; j < 8; j++) {
+              view.setUint8(j, bytes.charCodeAt(j));
+            }
+            floatArray[i] = view.getFloat64(0, true); // little endian
+          }
+
+          // Find min/max values for normalization
+          const validValues = Array.from(floatArray).filter(v => !isNaN(v) && isFinite(v));
+          const minValue = Math.min(...validValues);
+          const maxValue = Math.max(...validValues);
+          console.log('[COLOR VALUE DEBUG] Data range: min =', minValue, 'max =', maxValue);
+
+          // Convert raw values to RGB colors using the extracted colorscale
+          const colorResults = Array.from(floatArray).map(value => {
+            if (isNaN(value) || !isFinite(value) || !colorscale) {
+              console.log('[COLOR VALUE DEBUG] Invalid value or no colorscale:', value, 'using no color');
+              return undefined; // No color interpolation if no colorscale or invalid value
+            }
+
+            // Normalize value to [0,1] range based on data min/max
+            const normalizedValue = maxValue > minValue ? (value - minValue) / (maxValue - minValue) : 0;
+            console.log(
+              '[COLOR VALUE DEBUG] Processing value:',
+              value,
+              'normalized:',
+              normalizedValue,
+              'with colorscale:',
+              colorscale,
+            );
+            return interpolateColor(normalizedValue, colorscale);
+          });
+
+          // Filter out undefined values and assign to markerColors
+          markerColors = colorResults.filter((color: string | undefined): color is string => color !== undefined);
+
+          console.log('[COLOR DEBUG] Extracted colors from binary data:', markerColors.slice(0, 10));
+        } catch (e) {
+          console.warn('Failed to parse binary color data:', e);
+        }
+      } else if (Array.isArray(plotlyData.marker.colors)) {
+        markerColors = plotlyData.marker.colors;
+      }
+    }
+
+    // Convert Plotly.js format to flat format
+    const flatData: SunburstFlatData = {
+      ids: plotlyData.ids || [],
+      labels: plotlyData.labels || plotlyData.ids || [],
+      parents: plotlyData.parents || [],
+      values: plotlyData.values || [],
+    };
+
+    const root = flatToTree(flatData, markerColors);
+    return buildTree({ root });
+  }
+
   return { root: { id: 'root', label: 'Root', value: 0 }, nodes: [] };
 }
 
+// Color interpolation function using D3 similar to GroupedVerticalBarChart
+function interpolateColor(value: number, colorscale?: Array<[number, string]>): string {
+  console.log('[INTERPOLATE DEBUG] Called with value:', value, 'colorscale:', colorscale);
+
+  // Clamp value to [0, 1] range
+  const normalizedValue = Math.max(0, Math.min(1, value));
+
+  // Extract start and end colors from plotly colorscale if provided
+  if (colorscale && colorscale.length >= 1) {
+    // Handle multi-color colorscale with proper interpolation across all color stops
+    console.log('[INTERPOLATE DEBUG] Multi-color colorscale with', colorscale.length, 'color stops');
+
+    // Sort colorscale by position to ensure proper interpolation
+    const sortedColorscale = [...colorscale].sort((a, b) => a[0] - b[0]);
+
+    // Find the appropriate color segment for the normalized value
+    for (let i = 0; i < sortedColorscale.length - 1; i++) {
+      const [pos1, color1] = sortedColorscale[i];
+      const [pos2, color2] = sortedColorscale[i + 1];
+
+      if (normalizedValue >= pos1 && normalizedValue <= pos2) {
+        // Interpolate between these two colors
+        const segmentProgress = pos2 > pos1 ? (normalizedValue - pos1) / (pos2 - pos1) : 0;
+        const colorInterpolator = d3ScaleLinear<string>().domain([0, 1]).range([color1, color2]);
+        const result = rgb(colorInterpolator(segmentProgress)).formatRgb();
+        console.log(
+          '[INTERPOLATE DEBUG] Interpolating between',
+          color1,
+          'and',
+          color2,
+          'progress:',
+          segmentProgress,
+          'result:',
+          result,
+        );
+        return result;
+      }
+    }
+
+    // If value is outside the range, use the closest color
+    if (normalizedValue <= sortedColorscale[0][0]) {
+      const result = sortedColorscale[0][1];
+      console.log('[INTERPOLATE DEBUG] Using first color:', result);
+      return result;
+    } else {
+      const result = sortedColorscale[sortedColorscale.length - 1][1];
+      console.log('[INTERPOLATE DEBUG] Using last color:', result);
+      return result;
+    }
+  }
+
+  console.log('[INTERPOLATE DEBUG] No colorscale provided, returning undefined');
+  // If no colorscale provided, return undefined to indicate no color should be applied
+  return 'transparent';
+}
 function flatToTree(flat: SunburstFlatData, markerColors?: string[]): SunburstNode {
   const map: Record<string, SunburstNode & { parent?: string | null }> = {};
 
@@ -740,7 +1098,12 @@ function computeLayout(root: SunburstNode, props: SunburstChartProps): Segment[]
   if (props.branchValues === 'remainder') {
     const fullSpan = end - start;
     const isVirtualRoot =
-      root.id !== '__plotly_center__' && root.id === 'root' && Array.isArray(root.children) && root.children.length > 1;
+      root.id === '__virtual_root__' ||
+      root.id === '__multi_root__' ||
+      (root.id !== '__plotly_center__' &&
+        root.id === 'root' &&
+        Array.isArray(root.children) &&
+        root.children.length > 1);
     const topLevel: SunburstNode[] = root.id === '__plotly_center__' || isVirtualRoot ? root.children || [] : [root];
     const getTotal = (n: SunburstNode) =>
       (n as any).__computedTotal !== undefined ? (n as any).__computedTotal : n.value || 0;
@@ -836,12 +1199,27 @@ function computeLayout(root: SunburstNode, props: SunburstChartProps): Segment[]
   }
 
   // Non-remainder mode (existing logic)
-  const traverse = (node: SunburstNode, depth: number, a0: number, a1: number, parentPath: string[]) => {
+  const traverse = (
+    node: SunburstNode,
+    depth: number,
+    a0: number,
+    a1: number,
+    parentPath: string[],
+    isMultiRootChild = false,
+  ) => {
     if (depth > (props.maxDepth ?? Number.POSITIVE_INFINITY)) {
       return;
     }
-    if (depth >= 0 && node.id !== '__plotly_center__') {
-      const segment = makeSeg(node, depth, a0, a1, parentPath, props.branchValues);
+    // Simplified depth handling - render nodes at depth >= -1 except virtual roots
+    const isVirtualRoot =
+      node.id === '__plotly_center__' || node.id === '__virtual_root__' || node.id === '__multi_root__';
+    const shouldRender = depth >= -1 && !isVirtualRoot;
+
+    if (shouldRender) {
+      // For multi-root children, they should render at their exact depth (starting from 0)
+      // For single-root nodes, map depth -1 to 0, depth 0 to 1, etc.
+      const segmentDepth = isMultiRootChild ? depth : depth + 1;
+      const segment = makeSeg(node, segmentDepth, a0, a1, parentPath, props.branchValues);
       segments.push(segment);
     }
     if (!node.children || node.children.length === 0) {
@@ -864,15 +1242,39 @@ function computeLayout(root: SunburstNode, props: SunburstChartProps): Segment[]
       const ang = totalAngle * (v / total);
       const s = acc;
       const e = s + ang;
-      traverse(c, depth + 1, s, e, parentPath.concat(node.id));
+      traverse(c, depth + 1, s, e, parentPath.concat(node.id), isMultiRootChild);
       acc = e;
     }
   };
 
-  if (root.id === '__plotly_center__') {
-    traverse(root, -1, start, end, []);
+  if (root.id === '__plotly_center__' || root.id === '__virtual_root__') {
+    traverse(root, -1, start, end, [], false);
+  } else if (root.id === '__multi_root__') {
+    // For multi-root, render children directly at depth 0 (no central gap)
+    if (root.children && root.children.length > 0) {
+      const children = [...root.children];
+
+      if (sortFn) {
+        children.sort((a, b) => sortFn(a, b, 0));
+      }
+      const getNodeValue = (n: SunburstNode) => n.value || 0;
+      const total = children.reduce((s, c) => s + getNodeValue(c), 0) || 1;
+
+      let acc = start;
+      const totalAngle = end - start;
+      for (let i = 0; i < children.length; i++) {
+        const c = children[i];
+        const v = getNodeValue(c);
+        const ang = totalAngle * (v / total);
+        const s = acc;
+        const e = s + ang;
+        // For multi-root children, start at depth 0 and mark them as multi-root children
+        traverse(c, 0, s, e, [], true);
+        acc = e;
+      }
+    }
   } else {
-    traverse({ ...root, children: root.children || [] }, -1, start, end, []);
+    traverse({ ...root, children: root.children || [] }, -1, start, end, [], false);
   }
 
   // Debug: Log segment count by depth
@@ -880,9 +1282,6 @@ function computeLayout(root: SunburstNode, props: SunburstChartProps): Segment[]
   segments.forEach(seg => {
     segmentsByDepth[seg.depth] = (segmentsByDepth[seg.depth] || 0) + 1;
   });
-  console.log('Segments by depth:', segmentsByDepth);
-  console.log('Total segments:', segments.length);
-
   return segments;
 }
 

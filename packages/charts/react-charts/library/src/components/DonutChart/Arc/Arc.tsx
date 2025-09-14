@@ -96,8 +96,12 @@ export const Arc: React.FunctionComponent<ArcProps> = React.forwardRef<HTMLDivEl
               outerRadius: props.outerRadius,
             })!
           }
-          className={classes.root}
-          style={{ fill: props.color, cursor: href ? 'pointer' : 'default' }}
+          className={props.color?.startsWith('url(') ? '' : classes.root}
+          style={{ 
+            fill: props.color, 
+            cursor: href ? 'pointer' : 'default',
+            outline: 'transparent'
+          }}
           onFocus={event => _onFocus(props.data!.data, id, event)}
           onMouseOver={event => _hoverOn(props.data!.data, event)}
           onMouseMove={event => _hoverOn(props.data!.data, event)}

@@ -35,6 +35,20 @@ export interface SunburstChartData {
   chartTitle?: string;
 }
 
+// Support for Plotly.js format
+export interface PlotlyTraceData {
+  ids?: string[];
+  labels?: string[];
+  parents?: Array<string | null | ''>;
+  values?: number[];
+  marker?: {
+    colors?: any; // Can be array or object with bdata
+    coloraxis?: string;
+  };
+}
+
+export type SunburstDataInput = SunburstChartData | PlotlyTraceData[];
+
 export type BranchValues = 'total' | 'remainder';
 
 /**
@@ -45,7 +59,7 @@ export interface SunburstChartProps extends CartesianChartProps {
   /**
    * Data to render in the chart.
    */
-  data: SunburstChartData;
+  data: SunburstDataInput;
 
   /**
    * Inner radius of the sunburst chart. Default is 0.

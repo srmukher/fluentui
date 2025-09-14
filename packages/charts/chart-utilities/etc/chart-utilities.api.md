@@ -387,7 +387,7 @@ export interface ErrorOptions {
 }
 
 // @public (undocumented)
-export type FluentChart = 'area' | 'composite' | 'donut' | 'fallback' | 'gauge' | 'groupedverticalbar' | 'heatmap' | 'horizontalbar' | 'line' | 'scatter' | 'scatterpolar' | 'sankey' | 'table' | 'verticalstackedbar' | 'gantt';
+export type FluentChart = 'area' | 'composite' | 'donut' | 'fallback' | 'gauge' | 'groupedverticalbar' | 'heatmap' | 'horizontalbar' | 'line' | 'scatter' | 'scatterpolar' | 'sankey' | 'sunburst' | 'table' | 'verticalstackedbar' | 'gantt';
 
 // @public (undocumented)
 export interface Font {
@@ -453,7 +453,7 @@ export const getAxisIds: (data: Partial<PlotData>) => {
 };
 
 // @public (undocumented)
-export const getAxisKey: (axLetter: 'x' | 'y', axId: number) => keyof Layout;
+export const getAxisKey: (axLetter: "x" | "y", axId: number) => keyof Layout;
 
 // @public
 export function getMultiLevelDateTimeFormatOptions(startLevel?: number, endLevel?: number): Intl.DateTimeFormatOptions;

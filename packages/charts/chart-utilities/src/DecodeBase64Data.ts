@@ -1,5 +1,4 @@
 import { PlotlySchema } from './PlotlySchema';
-import { isArrayOrTypedArray } from './PlotlySchemaConverter';
 
 function addBase64Padding(s: string): string {
   const paddingNeeded = (4 - (s.length % 4)) % 4;
