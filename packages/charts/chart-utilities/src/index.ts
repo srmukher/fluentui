@@ -119,7 +119,7 @@ export {
   getAxisKey,
 } from './PlotlySchemaConverter';
 
-export { decodeBase64Fields } from './DecodeBase64Data';
+export { decodeBase64Fields, decodeBase64 } from './DecodeBase64Data';
 
 export {
   formatToLocaleString,

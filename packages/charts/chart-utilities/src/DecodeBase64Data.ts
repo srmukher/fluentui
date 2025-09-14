@@ -1,6 +1,6 @@
 import { PlotlySchema } from './PlotlySchema';
 
-function addBase64Padding(s: string): string {
+export function addBase64Padding(s: string): string {
   const paddingNeeded = (4 - (s.length % 4)) % 4;
   return s + '='.repeat(paddingNeeded);
 }
@@ -29,7 +29,7 @@ function isBase64(s: string): boolean {
   }
 }
 
-function decodeBase64FromString(base64String: string): Uint8Array {
+export function decodeBase64FromString(base64String: string): Uint8Array {
   if (typeof window !== 'undefined' && typeof atob === 'function') {
     // For browsers
     const binaryString = atob(base64String);
@@ -45,7 +45,7 @@ function decodeBase64FromString(base64String: string): Uint8Array {
 
 // Helper function to decode base64-encoded data based on dtype
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-function decodeBase64(value: string, dtype: string): any {
+export function decodeBase64(value: string, dtype: string): any {
   // Add padding if necessary
   value = addBase64Padding(value);
 

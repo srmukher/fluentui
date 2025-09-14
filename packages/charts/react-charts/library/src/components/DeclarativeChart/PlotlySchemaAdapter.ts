@@ -80,6 +80,7 @@ import {
   isObjectArray,
   getAxisIds,
   getAxisKey,
+  decodeBase64,
 } from '@fluentui/chart-utilities';
 import { curveCardinal as d3CurveCardinal } from 'd3-shape';
 import type { ColorwayType } from './PlotlyColorAdapter';
@@ -1908,26 +1909,101 @@ export const transformPlotlyJsonToFunnelChartProps = (
     hideLegend: isMultiPlot || input.layout?.showlegend === false,
   };
 };
-// Function to decode base64 binary data to float64 array
+// Wrapper function to decode binary data to number array, maintaining existing interface
 function decodeBinaryData(binaryData: { dtype: string; bdata: string; shape?: string }): number[] {
-  if (!binaryData.bdata || binaryData.dtype !== 'f8') {
+  if (!binaryData.bdata) {
     return [];
   }
 
   try {
-    // Decode base64 to binary data
-    const binaryString = atob(binaryData.bdata);
-    const bytes = new Uint8Array(binaryString.length);
-    for (let i = 0; i < binaryString.length; i++) {
-      bytes[i] = binaryString.charCodeAt(i);
-    }
-
-    // Convert binary data to float64 array
-    const float64Array = new Float64Array(bytes.buffer);
-    return Array.from(float64Array);
+    const result = decodeBase64(binaryData.bdata, binaryData.dtype);
+    return Array.isArray(result) ? result : [];
   } catch (error) {
     return [];
   }
+}
+
+// Helper function to extract values from different data sources
+function extractValuesFromSource(
+  values?: number[] | { dtype: string; bdata: string; shape?: string },
+  customdata?: Array<Array<number | string>> | { dtype: string; bdata: string; shape?: string },
+): number[] {
+  let extractedValues: number[] = [];
+
+  // First try to get values from the values field
+  if (values) {
+    if (Array.isArray(values)) {
+      extractedValues = values;
+    } else if (typeof values === 'object' && 'bdata' in values) {
+      extractedValues = extractBinaryData(values);
+    }
+  }
+
+  // If no values or empty values, try customdata
+  if (extractedValues.length === 0 && customdata) {
+    if (Array.isArray(customdata)) {
+      extractedValues = customdata.map((row: any) => {
+        if (Array.isArray(row) && row.length > 0 && typeof row[0] === 'number') {
+          return row[0];
+        }
+        return 0;
+      });
+    } else if (typeof customdata === 'object' && 'bdata' in customdata) {
+      extractedValues = extractBinaryData(customdata);
+    }
+  }
+
+  return extractedValues;
+}
+
+// Helper function to detect colorscale usage indicators
+function hasColorscaleIndicators(marker?: { coloraxis?: string; colors?: any }): boolean {
+  if (!marker) return false;
+  return !!(
+    marker.coloraxis || // marker references coloraxis
+    (marker.colors && typeof marker.colors === 'object' && 'bdata' in marker.colors) || // binary encoded colors
+    (hasMarkerColorsArray(marker) && marker.colors.some((c: any) => typeof c === 'number')) // numeric color values
+  );
+}
+
+// Helper function to safely get index of node ID
+function getNodeIndex(flat: SunburstFlatData, nodeId: string): number {
+  return flat.ids ? flat.ids.indexOf(nodeId) : -1;
+}
+
+// Helper function to check if data represents a minimal hierarchy
+function isMinimalHierarchy(
+  ids?: string[],
+  labels?: string[],
+  parents?: Array<string | null>,
+  customdata?: any,
+): boolean {
+  return (
+    (ids?.length ?? 0) <= 1 &&
+    (labels?.length ?? 0) <= 1 &&
+    (parents?.length ?? 0) <= 1 &&
+    customdata &&
+    Array.isArray(customdata)
+  );
+}
+
+// Helper function to interpolate between two colors using d3-scale
+function interpolateColor(color1: string, color2: string, ratio: number): string {
+  const colorInterpolator = d3ScaleLinear<string>().domain([0, 1]).range([color1, color2]);
+  return rgb(colorInterpolator(ratio)).formatRgb();
+}
+
+// Helper function to check if marker colors are available as an array
+function hasMarkerColorsArray(marker?: { colors?: any }): boolean {
+  return Array.isArray(marker?.colors);
+}
+
+// Helper function to extract binary data safely
+function extractBinaryData(binaryData: { dtype: string; bdata: string; shape?: string } | undefined): number[] {
+  if (!binaryData?.bdata) {
+    return [];
+  }
+  return decodeBinaryData(binaryData);
 }
 
 // Function to interpolate color from a colorscale
@@ -2011,33 +2087,6 @@ function interpolateColorFromScale(
   return normalizedValue <= colorscale[0][0] ? colorscale[0][1] : colorscale[colorscale.length - 1][1];
 }
 
-// Function to interpolate between two RGB colors
-function interpolateColor(color1: string, color2: string, ratio: number): string {
-  const rgb1 = parseRgbColor(color1);
-  const rgb2 = parseRgbColor(color2);
-
-  if (!rgb1 || !rgb2) return color1;
-
-  const r = Math.round(rgb1.r + (rgb2.r - rgb1.r) * ratio);
-  const g = Math.round(rgb1.g + (rgb2.g - rgb1.g) * ratio);
-  const b = Math.round(rgb1.b + (rgb2.b - rgb1.b) * ratio);
-
-  return `rgb(${r},${g},${b})`;
-}
-
-// Function to parse any CSS color (named, hex, rgb/rgba, hsl/hsla) using d3-color
-function parseRgbColor(color: string): { r: number; g: number; b: number } | null {
-  try {
-    const c = rgb(color);
-    if (!c || Number.isNaN(c.r) || Number.isNaN(c.g) || Number.isNaN(c.b)) {
-      return null;
-    }
-    return { r: Math.round(c.r), g: Math.round(c.g), b: Math.round(c.b) };
-  } catch {
-    return null;
-  }
-}
-
 export const transformPlotlyJsonToSunburstProps = (
   input: PlotlySchema,
   isMultiPlot: boolean,
@@ -2045,7 +2094,6 @@ export const transformPlotlyJsonToSunburstProps = (
   colorwayType: ColorwayType,
   isDarkTheme?: boolean,
 ): SunburstChartProps => {
-  console.log('[PlotlySchemaAdapter] Raw input data:', JSON.stringify(input, null, 2));
 
   const first = input.data[0] as Partial<PlotData> & {
     ids?: string[];
@@ -2064,31 +2112,7 @@ export const transformPlotlyJsonToSunburstProps = (
   };
 
   // Extract values from customdata or values, handling binary encoding
-  let extractedValues: number[] = [];
-
-  // First try to get values from the values field
-  if (first.values) {
-    if (Array.isArray(first.values)) {
-      extractedValues = first.values as number[];
-    } else if (typeof first.values === 'object' && 'bdata' in first.values) {
-      extractedValues = decodeBinaryData(first.values);
-    }
-  }
-
-  // If no values or empty values, try customdata
-  if (extractedValues.length === 0 && first.customdata) {
-    if (Array.isArray(first.customdata)) {
-      const customRows = first.customdata as any[];
-      extractedValues = customRows.map((row: any) => {
-        if (Array.isArray(row) && row.length > 0 && typeof row[0] === 'number') {
-          return row[0];
-        }
-        return 0;
-      });
-    } else if (typeof first.customdata === 'object' && 'bdata' in first.customdata) {
-      extractedValues = decodeBinaryData(first.customdata);
-    }
-  }
+  let extractedValues: number[] = extractValuesFromSource(first.values, first.customdata);
 
   // Extract pattern data
   let patternShapes: string[] = [];
@@ -2097,22 +2121,15 @@ export const transformPlotlyJsonToSunburstProps = (
       patternShapes = first.marker.pattern.shape;
     } else if (typeof first.marker.pattern.shape === 'object' && 'bdata' in first.marker.pattern.shape) {
       // Handle binary encoded pattern shapes if needed - convert numbers to strings
-      const decodedPatterns = decodeBinaryData(first.marker.pattern.shape);
+      const decodedPatterns = extractBinaryData(first.marker.pattern.shape);
       patternShapes = decodedPatterns.map(p => String(p));
     }
   }
-  console.log('[ADAPTER DEBUG] Initial pattern shapes:', patternShapes, 'length:', patternShapes.length);
 
   // Fallback: if hierarchy arrays are effectively missing but we have rich customdata, derive a flat 1-level tree.
   // This addresses cases where the incoming schema only contains one label/id (or none) so nothing renders.
   // We treat the second column of customdata as a category key and aggregate the first column (numeric) as value.
-  if (
-    (first.ids?.length ?? 0) <= 1 &&
-    (first.labels?.length ?? 0) <= 1 &&
-    (first.parents?.length ?? 0) <= 1 &&
-    first.customdata &&
-    Array.isArray(first.customdata)
-  ) {
+  if (isMinimalHierarchy(first.ids, first.labels, first.parents, first.customdata)) {
     try {
       const categoryTotals = new Map<string, number>();
       (first.customdata as any[]).forEach(row => {
@@ -2130,12 +2147,12 @@ export const transformPlotlyJsonToSunburstProps = (
         const derivedValues = derivedIds.map(k => categoryTotals.get(k)!);
         const derivedParents = derivedIds.map(() => '');
         const derivedLabels = [...derivedIds];
-        
+
         // Derive patterns for categories if original patterns exist
         let derivedPatternShapes: string[] | undefined;
         if (patternShapes.length > 0) {
           const categoryPatterns = new Map<string, Map<string, number>>();
-          
+
           (first.customdata as any[]).forEach((row, index) => {
             if (Array.isArray(row) && row.length >= 3) {
               const cat = typeof row[2] === 'string' ? row[2] : undefined; // category is 3rd column
@@ -2149,7 +2166,7 @@ export const transformPlotlyJsonToSunburstProps = (
               }
             }
           });
-          
+
           // For each derived category, pick the most common pattern
           derivedPatternShapes = derivedIds.map(cat => {
             const patternCount = categoryPatterns.get(cat);
@@ -2167,20 +2184,19 @@ export const transformPlotlyJsonToSunburstProps = (
             return '';
           });
         }
-        
+
         first.ids = derivedIds;
         first.labels = derivedLabels;
         first.parents = derivedParents;
         extractedValues = derivedValues; // overwrite extracted values so flat uses them
-        
+
         // Update pattern shapes to match derived categories
         if (derivedPatternShapes) {
           patternShapes = derivedPatternShapes;
-          console.log('[ADAPTER DEBUG] Updated pattern shapes after derivation:', patternShapes);
         }
       }
     } catch (e) {
-      console.log('[ADAPTER DEBUG] Error in customdata fallback:', e);
+      // Silently handle fallback errors
     }
   }
 
@@ -2199,31 +2215,23 @@ export const transformPlotlyJsonToSunburstProps = (
         shape: patternShapes,
       },
     };
-    console.log('[ADAPTER DEBUG] Added patterns to flat data:', flat.marker?.pattern?.shape);
   }
 
   // Check if colorscale is being used - only detect when there's actual colorscale data
   let colorscale =
-    (input.layout as any)?.coloraxis?.colorscale ||
-    (input.data[0] as any)?.colorscale ||
-    first.marker?.colorscale;
-  
+    (input.layout as any)?.coloraxis?.colorscale || (input.data[0] as any)?.colorscale || first.marker?.colorscale;
+
   // Also check for colorscale template configurations, but only if there's indication of colorscale usage
-  const hasColorscaleIndicators = 
-    first.marker?.coloraxis || // marker references coloraxis
-    (first.marker?.colors && typeof first.marker.colors === 'object' && 'bdata' in first.marker.colors) || // binary encoded colors
-    (Array.isArray(first.marker?.colors) && first.marker.colors.some(c => typeof c === 'number')); // numeric color values
-  
-  if (!colorscale && hasColorscaleIndicators) {
-    colorscale = 
+  const hasColorscaleIndicatorsPresent = hasColorscaleIndicators(first.marker);
+
+  if (!colorscale && hasColorscaleIndicatorsPresent) {
+    colorscale =
       (input.layout as any)?.template?.layout?.coloraxis?.colorscale ||
       (input.layout as any)?.template?.layout?.colorscale?.sequential ||
       (input.layout as any)?.colorscale?.sequential;
   }
-  
-  let hasColorscale = colorscale && Array.isArray(colorscale) && hasColorscaleIndicators;
 
-  console.log('[COLORSCALE DEBUG] Detected colorscale:', !!colorscale, 'hasColorscale:', hasColorscale);
+  let hasColorscale = colorscale && Array.isArray(colorscale) && hasColorscaleIndicatorsPresent;
 
   // Intentionally do NOT mutate or remap the incoming colorscale to avoid hard-coded color substitutions.
 
@@ -2234,7 +2242,7 @@ export const transformPlotlyJsonToSunburstProps = (
     let colorValues: number[] = [];
     // Try to get color values from marker.colors first
     if (first.marker?.colors) {
-      if (Array.isArray(first.marker.colors)) {
+      if (hasMarkerColorsArray(first.marker)) {
         colorValues = first.marker.colors.map((c: any) => {
           if (c === null || c === undefined) {
             return NaN; // Keep nulls as NaN for proper handling
@@ -2242,13 +2250,12 @@ export const transformPlotlyJsonToSunburstProps = (
           return typeof c === 'number' ? c : parseFloat(String(c)) || NaN;
         });
       } else if (typeof first.marker.colors === 'object' && 'bdata' in first.marker.colors) {
-        colorValues = decodeBinaryData(first.marker.colors);
+        colorValues = extractBinaryData(first.marker.colors);
       }
     }
 
     // If no color values from marker, try to extract from customdata (refund amounts)
     if (colorValues.length === 0 && first.customdata) {
-      console.log('[COLORSCALE DEBUG] Extracting from customdata:', typeof first.customdata);
       if (Array.isArray(first.customdata)) {
         // Extract the last element from each row (should be the metric value for coloring)
         const customRows = first.customdata as any[];
@@ -2260,8 +2267,7 @@ export const transformPlotlyJsonToSunburstProps = (
           return 0;
         });
       } else if (typeof first.customdata === 'object' && 'bdata' in first.customdata) {
-        console.log('[COLORSCALE DEBUG] Using binary customdata');
-        colorValues = decodeBinaryData(first.customdata);
+        colorValues = extractBinaryData(first.customdata);
       }
     }
 
@@ -2270,7 +2276,6 @@ export const transformPlotlyJsonToSunburstProps = (
       colorValues = extractedValues;
     }
 
-    console.log('[COLORSCALE DEBUG] Color values extracted:', colorValues.slice(0, 10), 'length:', colorValues.length);
     if (colorValues.length > 0) {
       // Filter out NaN values for min/max calculation
       const validColorValues = colorValues.filter(value => !isNaN(value) && isFinite(value));
@@ -2316,22 +2321,6 @@ export const transformPlotlyJsonToSunburstProps = (
             return interpolatedColor;
           });
         }
-
-        // Debug: Check if all colors are too dark (might indicate a normalization issue)
-        if (colorscaleColors && colorscaleColors.length > 0) {
-          const nonNullColors = colorscaleColors.filter(c => c !== null);
-          const darkColors = nonNullColors.filter(c => {
-            if (typeof c === 'string' && c.startsWith('#')) {
-              // Check if RGB values are all low (dark color)
-              const hex = c.slice(1);
-              const r = parseInt(hex.slice(0, 2), 16);
-              const g = parseInt(hex.slice(2, 4), 16);
-              const b = parseInt(hex.slice(4, 6), 16);
-              return r < 50 && g < 50 && b < 50; // Very dark threshold
-            }
-            return false;
-          });
-        }
       }
     }
   }
@@ -2340,7 +2329,6 @@ export const transformPlotlyJsonToSunburstProps = (
   let colors: string[] | string | null | undefined;
 
   if (!hasColorscale || !colorscaleColors) {
-    console.log('[COLORSCALE DEBUG] Extracting non-colorscale colors');
     colors = extractColor(
       (input.layout as any)?.sunburstcolorway ?? input.layout?.template?.layout?.colorway,
       colorwayType,
@@ -2353,10 +2341,7 @@ export const transformPlotlyJsonToSunburstProps = (
   // Build a minimal tree and (if marker.colors exists) stamp colors on legend-level nodes so descendants inherit.
   // We only attach color on nodes whose parent is falsy (roots) when multiple roots, or children of a single root.
   const buildColorStampedRoot = (): SunburstNode | undefined => {
-    console.log('[ROOT LOGIC] buildColorStampedRoot() called');
-    console.log('[ROOT LOGIC] flat.ids.length:', flat.ids.length);
     if (!flat.ids.length) {
-      console.log('[ROOT LOGIC] Early return - no IDs');
       return undefined;
     }
     // Create map for quick lookup
@@ -2420,7 +2405,7 @@ export const transformPlotlyJsonToSunburstProps = (
               : colorscaleColors[i]!;
         }
       }
-    } else if (Array.isArray(first.marker?.colors)) {
+    } else if (hasMarkerColorsArray(first.marker)) {
       const ids = first.ids ?? [];
       // Create a complete color mapping for all IDs using resolveColor
       for (let i = 0; i < ids.length; i++) {
@@ -2530,7 +2515,6 @@ export const transformPlotlyJsonToSunburstProps = (
     }
 
     // Analyze structure to determine if this is hierarchical or categorical
-    console.log('[ROOT LOGIC] Starting root analysis, rootCandidates.length:', rootCandidates.length);
     const getMaxDepthFromNode = (node: SunburstNode): number => {
       if (!node.children || node.children.length === 0) return 0;
       return 1 + Math.max(...node.children.map(getMaxDepthFromNode));
@@ -2553,15 +2537,13 @@ export const transformPlotlyJsonToSunburstProps = (
     // Schemas with explicit marker.colors (but no coloraxis) should also be treated as categorical
     // Schemas with colorscale should also be treated as categorical (no center hole)
     const hasColorAxis = !!first.marker?.coloraxis;
-    const hasExplicitColors = Array.isArray(first.marker?.colors);
+    const hasExplicitColors = hasMarkerColorsArray(first.marker);
     const isHierarchicalStructure =
       structureAnalysis.some(s => s.hasMultipleGenerations) &&
       structureAnalysis.every(s => s.childCount > 0) &&
       !hasColorAxis &&
       !hasExplicitColors &&
       !hasColorscale; // Schemas with colorscale should be treated as categorical
-
-    console.log('[ROOT LOGIC] hasExplicitColors:', hasExplicitColors, 'isHierarchical:', isHierarchicalStructure);
 
     if (isHierarchicalStructure) {
       // This is a hierarchical structure like Trade Show/Webinar/Workshop -> cities -> methods
@@ -2594,16 +2576,7 @@ export const transformPlotlyJsonToSunburstProps = (
     chartTitle,
   };
 
-  console.log('[CONDITION DEBUG] hasColorscale:', hasColorscale, 'colorscaleColors exists:', !!colorscaleColors);
-  console.log(
-    '[CONDITION DEBUG] first.marker?.colors:',
-    !!first.marker?.colors,
-    'is array:',
-    Array.isArray(first.marker?.colors),
-  );
-
   if (hasColorscale && colorscaleColors) {
-    console.log('[CONDITION DEBUG] Taking colorscale branch');
     // For colorscale, assign colors directly to tree nodes based on the colorscale mapping
     flat.marker = flat.marker || {};
     // IMPORTANT: Set the colorscale colors in flat.marker.colors for the component to use
@@ -2627,7 +2600,7 @@ export const transformPlotlyJsonToSunburstProps = (
         if (!node) return;
 
         // Find the color for this node based on its ID
-        const idIndex = flat.ids.indexOf(node.id);
+        const idIndex = getNodeIndex(flat, node.id);
 
         if (idIndex >= 0 && colorscaleColors) {
           const originalVal = originalMarkerColors ? originalMarkerColors[idIndex] : undefined;
@@ -2637,7 +2610,6 @@ export const transformPlotlyJsonToSunburstProps = (
           } else if (colorscaleColors[idIndex]) {
             const assignedColor = colorscaleColors[idIndex];
             node.color = assignedColor;
-          } else {
           }
         }
 
@@ -2647,21 +2619,19 @@ export const transformPlotlyJsonToSunburstProps = (
       };
       assignColorscaleColors(dataObject.root, 0);
     }
-  } else if (Array.isArray(first.marker?.colors) && !(hasColorscale && colorscaleColors)) {
-    console.log('[CONDITION DEBUG] Taking marker.colors branch');
+  } else if (hasMarkerColorsArray(first.marker) && !(hasColorscale && colorscaleColors)) {
     // Only process raw marker colors if we haven't already processed colorscale colors
     flat.marker = flat.marker || {};
-    flat.marker.colors = first.marker.colors.map(c => String(c));
+    flat.marker.colors = first.marker!.colors!.map(c => String(c));
     // Still need to build the root structure to determine hierarchical vs categorical layout
     dataObject.root = buildColorStampedRoot();
   } else {
-    console.log('[CONDITION DEBUG] Taking fallback branch');
     // Only use custom root when no explicit colors
     dataObject.root = buildColorStampedRoot();
   }
 
   // Track whether we had original marker colors before any synthesis
-  const hadOriginalMarkerColors = Array.isArray(first.marker?.colors);
+  const hadOriginalMarkerColors = hasMarkerColorsArray(first.marker);
   // Fallback: if marker colors are still missing or contain falsy entries, synthesize them from colorway
   if (!flat.marker?.colors && !(hasColorscale && colorscaleColors)) {
     // Create a priority-based color assignment: root candidates get first colors from colorway
@@ -2695,13 +2665,11 @@ export const transformPlotlyJsonToSunburstProps = (
     }
   } else if (flat.marker && Array.isArray((flat.marker as any).colors)) {
     // Replace any empty/undefined colors with resolved fallback, but preserve null values for colorscale handling
-    let mutated = false;
     const arr = (flat.marker as any).colors as any[];
     for (let i = 0; i < arr.length; i++) {
       // Only replace undefined/empty values, but keep null values as they indicate intermediate nodes
       if (arr[i] !== null && !arr[i]) {
         arr[i] = resolveColor(colors, i, flat.ids?.[i] || String(i), colorMap, isDarkTheme);
-        mutated = true;
       }
     }
   }
@@ -2714,20 +2682,6 @@ export const transformPlotlyJsonToSunburstProps = (
     // Hierarchical tonal mode: no explicit marker.colors & no colorscale -> mimic Plotly behavior of
     // same base hue per top-level branch with progressively lighter shades for deeper depths.
     const hierarchicalTonalMode = !hadOriginalMarkerColors && !(hasColorscale && colorscaleColors) && paletteLen > 0;
-    if (hierarchicalTonalMode) {
-    }
-
-    const lightenColor = (hex: string, factor: number): string => {
-      if (!/^#?[0-9a-fA-F]{6}$/.test(hex)) return hex; // keep original if unexpected
-      const h = hex.replace('#', '');
-      const r = parseInt(h.slice(0, 2), 16);
-      const g = parseInt(h.slice(2, 4), 16);
-      const b = parseInt(h.slice(4, 6), 16);
-      const lr = Math.round(r + (255 - r) * factor);
-      const lg = Math.round(g + (255 - g) * factor);
-      const lb = Math.round(b + (255 - b) * factor);
-      return '#' + [lr, lg, lb].map(v => v.toString(16).padStart(2, '0')).join('');
-    };
 
     // For hierarchical mode we assign a base color per root (depth 1 under pseudo-center) sequentially from palette.
     let nextRootIndex = 0;
@@ -2737,7 +2691,7 @@ export const transformPlotlyJsonToSunburstProps = (
 
       if (!node.color) {
         // First priority: For root nodes, check if we have a synthesized color from flat.marker.colors
-        const idIndex = flat.ids ? flat.ids.indexOf(node.id) : -1;
+        const idIndex = getNodeIndex(flat, node.id);
         const nodeParent = idIndex >= 0 && flat.parents ? flat.parents[idIndex] : null;
         const isRootNode = !nodeParent || nodeParent === '';
 
@@ -2787,7 +2741,7 @@ export const transformPlotlyJsonToSunburstProps = (
                 }
                 const relativeDepth = depth - 1; // 0 = root branch, 1 = children, ...
                 const factor = Math.min(0.2 * relativeDepth, 0.7); // cap lightening
-                node.color = lightenColor(rootBase, factor);
+                node.color = interpolateColor(rootBase, '#ffffff', factor);
               }
             }
           } else if (paletteLen) {
