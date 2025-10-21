@@ -2,6 +2,7 @@ import type { Datum, TypedArray, PlotData, PlotlySchema, Data, Layout, SankeyDat
 import { decodeBase64Fields } from './DecodeBase64Data';
 
 export type FluentChart =
+  | 'annotation'
   | 'area'
   | 'composite'
   | 'donut'
@@ -210,10 +211,30 @@ export const getValidSchema = (input: any): PlotlySchema => {
     if (typeof validatedSchema !== 'object') {
       throw new Error(`Plotly input is not an object. Input type: ${typeof validatedSchema}`);
     }
+    const hasAnnotations = (() => {
+      const annotations = validatedSchema?.layout?.annotations;
+      if (Array.isArray(annotations)) {
+        return annotations.length > 0;
+      }
+      return !!annotations;
+    })();
+
     if (!isArrayOrTypedArray(validatedSchema.data)) {
+      if (hasAnnotations) {
+        return {
+          ...validatedSchema,
+          data: [],
+        };
+      }
       throw new Error('Plotly input data is not a valid array or typed array');
     }
     if (validatedSchema.data.length === 0) {
+      if (hasAnnotations) {
+        return {
+          ...validatedSchema,
+          data: [],
+        };
+      }
       throw new Error('Plotly input data is empty');
     }
     return validatedSchema;
@@ -485,6 +506,14 @@ export const mapFluentChart = (input: any): OutputChartType => {
       validSchema = decodeBase64Fields(validSchema);
     } catch (error) {
       return { isValid: false, errorMessage: `Failed to decode plotly schema: ${error}` };
+    }
+
+    const annotations = validSchema?.layout?.annotations;
+    const hasAnnotations = Array.isArray(annotations) ? annotations.length > 0 : !!annotations;
+    const hasTraces = Array.isArray(validSchema.data) && validSchema.data.length > 0;
+
+    if (!hasTraces && hasAnnotations) {
+      return { isValid: true, type: 'annotation', validTracesInfo: [] };
     }
 
     const validTraces = getValidTraces(validSchema.data, validSchema.layout);

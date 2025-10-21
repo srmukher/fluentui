@@ -1,76 +1,68 @@
 {
-  "visualizer": "plotly",
-  "data": [
-    {
-      "hole": 0.6,
-      "type": "pie",
-      "frame": null,
-      "marker": {
-        "line": {
-          "color": "transparent"
-        },
-        "colors": [
-          "rgba(31,119,180,1)",
-          "rgba(255,127,14,1)",
-          "rgba(44,160,44,1)",
-          "rgba(214,39,40,1)",
-          "rgba(148,103,189,1)",
-          "rgba(140,86,75,1)",
-          "rgba(227,119,194,1)",
-          "rgba(127,127,127,1)",
-          "rgba(188,189,34,1)",
-          "rgba(23,190,207,1)"
-        ],
-        "fillcolor": "rgba(31,119,180,1)"
-      },
-      "labels": [
-        "AMC",
-        "Cadillac",
-        "Camaro",
-        "Chrysler",
-        "Datsun",
-        "Dodge",
-        "Duster",
-        "Ferrari",
-        "Fiat",
-        "Ford",
-        "Honda",
-        "Hornet",
-        "Lincoln",
-        "Lotus",
-        "Maserati",
-        "Mazda",
-        "Merc",
-        "Pontiac",
-        "Porsche",
-        "Toyota",
-        "Valiant",
-        "Volvo"
-      ],
-      "values": [1, 1, 1, 1, 1, 1, 1, 1, 2, 1, 1, 2, 1, 1, 1, 2, 7, 1, 1, 2, 1, 1]
-    }
-  ],
+  "data": [],
   "layout": {
-    "title": "Donut charts using Plotly",
+    "template": {
+      "layout": {
+        "paper_bgcolor": "#f7f7f7",
+        "plot_bgcolor": "#f7f7f7",
+        "font": {
+          "color": "#222"
+        }
+      }
+    },
+    "title": {
+      "text": "Operational Updates"
+    },
+    "annotations": [
+      {
+        "text": "Upcoming dry-dock scheduled for Q4",
+        "x": 0.5,
+        "y": 0.7,
+        "xref": "paper",
+        "yref": "paper",
+        "showarrow": false,
+        "font": {
+          "size": 18,
+          "color": "#1a1a1a"
+        }
+      },
+      {
+        "text": "Inspection backlog cleared",
+        "x": 0.5,
+        "y": 0.5,
+        "xref": "paper",
+        "yref": "paper",
+        "showarrow": false,
+        "font": {
+          "size": 16,
+          "color": "#2a72b5"
+        }
+      },
+      {
+        "text": "Crew certification refresh due next month",
+        "x": 0.5,
+        "y": 0.3,
+        "xref": "paper",
+        "yref": "paper",
+        "showarrow": false,
+        "font": {
+          "size": 16,
+          "color": "#6d6d6d"
+        }
+      }
+    ],
     "xaxis": {
-      "showgrid": false,
-      "zeroline": false,
-      "showticklabels": false
+      "visible": false
     },
     "yaxis": {
-      "showgrid": false,
-      "zeroline": false,
-      "showticklabels": false
+      "visible": false
     },
     "margin": {
-      "b": 40,
-      "l": 60,
-      "r": 10,
-      "t": 25
-    },
-    "hovermode": "closest",
-    "showlegend": true
+      "l": 40,
+      "r": 40,
+      "t": 60,
+      "b": 40
+    }
   },
-  "frames": [],
-  "selectedLegends": ["Cadillac"]
+  "id": "annotation-only-001"
 }

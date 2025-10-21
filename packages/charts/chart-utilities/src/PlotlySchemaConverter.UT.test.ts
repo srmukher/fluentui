@@ -284,7 +284,7 @@ describe('isArrayOfType UTs', () => {
 
   test('invalid arrays', () => {
     expect(isArrayOfType([1, 'a', 3], isNumber)).toBe(false);
-    expect(isArrayOfType(null, isNumber)).toBe(false);
+    expect(isArrayOfType(null as unknown as never[], isNumber)).toBe(false);
     expect(isArrayOfType(undefined, isNumber)).toBe(false);
     expect(isArrayOfType([], isNumber)).toBe(false); // Empty arrays return false
   });
@@ -308,7 +308,7 @@ describe('isNumberArray UTs', () => {
     expect(isNumberArray([1, 'a', 3])).toBe(false);
     expect(isNumberArray(['a', 'b', 'c'])).toBe(false);
     expect(isNumberArray([])).toBe(false);
-    expect(isNumberArray(null)).toBe(false);
+    expect(isNumberArray(null as unknown as never[])).toBe(false);
   });
 });
 
@@ -323,7 +323,7 @@ describe('isDateArray UTs', () => {
     expect(isDateArray(['2023-01-01', 'not a date', '2023-01-03'])).toBe(false);
     expect(isDateArray([1, 2, 3])).toBe(false);
     expect(isDateArray([])).toBe(false);
-    expect(isDateArray(null)).toBe(false);
+    expect(isDateArray(null as unknown as never[])).toBe(false);
   });
 });
 
@@ -338,7 +338,7 @@ describe('isMonthArray UTs', () => {
     expect(isMonthArray(['January', 'NotAMonth', 'March'])).toBe(false);
     expect(isMonthArray([1, 2, 3])).toBe(false);
     expect(isMonthArray([])).toBe(false);
-    expect(isMonthArray(null)).toBe(false);
+    expect(isMonthArray(null as unknown as never[])).toBe(false);
   });
 });
 
@@ -354,7 +354,7 @@ describe('isYearArray UTs', () => {
     expect(isYearArray([2020, 2200, 2022])).toBe(false); // Year too far in future
     expect(isYearArray([2020.5, 2021, 2022])).toBe(false); // Not integer
     expect(isYearArray([])).toBe(false);
-    expect(isYearArray(null)).toBe(false);
+    expect(isYearArray(null as unknown as never[])).toBe(false);
   });
 });
 
@@ -369,7 +369,7 @@ describe('isStringArray UTs', () => {
     expect(isStringArray([1, 2, 3])).toBe(false);
     expect(isStringArray(['a', 1, 'c'])).toBe(false);
     expect(isStringArray([])).toBe(false);
-    expect(isStringArray(null)).toBe(false);
+    expect(isStringArray(null as unknown as never[])).toBe(false);
   });
 });
 
@@ -755,6 +755,29 @@ describe('mapFluentChart UTs', () => {
     const result = mapFluentChart(input);
     expect(result.isValid).toBe(true);
     expect(result.type).toBe('table');
+  });
+
+  test('annotation-only layout mapping', () => {
+    const input = {
+      data: [],
+      layout: {
+        annotations: [
+          {
+            text: 'Important note',
+            x: 0.5,
+            y: 0.5,
+            xref: 'paper',
+            yref: 'paper',
+            showarrow: false,
+          },
+        ],
+      },
+    };
+
+    const result = mapFluentChart(input);
+    expect(result.isValid).toBe(true);
+    expect(result.type).toBe('annotation');
+    expect(result.validTracesInfo).toHaveLength(0);
   });
 
   test('unsupported chart type', () => {

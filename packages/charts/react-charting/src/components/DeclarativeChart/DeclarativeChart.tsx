@@ -2,6 +2,7 @@
 import * as React from 'react';
 import { useTheme } from '@fluentui/react';
 import { IRefObject } from '@fluentui/react/lib/Utilities';
+import { AnnotationOnlyChart } from '../AnnotationOnlyChart/AnnotationOnlyChart';
 import { DonutChart } from '../DonutChart/index';
 import { VerticalStackedBarChart } from '../VerticalStackedBarChart/index';
 import { decodeBase64Fields } from '@fluentui/chart-utilities';
@@ -31,6 +32,7 @@ import {
   SINGLE_REPEAT,
   transformPlotlyJsonToFunnelChartProps,
   transformPlotlyJsonToGanttChartProps,
+  transformPlotlyJsonToAnnotationChartProps,
 } from './PlotlySchemaAdapter';
 import type { ColorwayType } from './PlotlyColorAdapter';
 import { LineChart } from '../LineChart/index';
@@ -169,6 +171,10 @@ const LineAreaPreTransformOp = (plotlyInput: PlotlySchema) => {
 };
 
 type ChartTypeMap = {
+  annotation: {
+    transformer: typeof transformPlotlyJsonToAnnotationChartProps;
+    renderer: typeof AnnotationOnlyChart;
+  } & PreTransformHooks;
   donut: {
     transformer: typeof transformPlotlyJsonToDonutProps;
     renderer: typeof ResponsiveDonutChart;
@@ -232,6 +238,10 @@ type ChartTypeMap = {
 };
 
 const chartMap: ChartTypeMap = {
+  annotation: {
+    transformer: transformPlotlyJsonToAnnotationChartProps,
+    renderer: AnnotationOnlyChart,
+  },
   // PieData category charts
   donut: {
     transformer: transformPlotlyJsonToDonutProps,
@@ -317,6 +327,7 @@ export const DeclarativeChart: React.FunctionComponent<DeclarativeChartProps> = 
   let plotlyInput = plotlySchema as PlotlySchema;
   try {
     plotlyInput = decodeBase64Fields(plotlyInput);
+    console.log('plotlyInput = ', plotlyInput);
   } catch (error) {
     throw new Error(`Failed to decode plotly schema: ${error}`);
   }
@@ -440,6 +451,10 @@ export const DeclarativeChart: React.FunctionComponent<DeclarativeChartProps> = 
     groupedTraces[traceKey].push(index);
   });
 
+  if (chart.type === 'annotation' && Object.keys(groupedTraces).length === 0) {
+    groupedTraces.annotation = [];
+  }
+
   isMultiPlot.current = Object.keys(groupedTraces).length > 1;
   const gridProperties: GridProperties = getGridProperties(
     plotlyInputWithValidData,
@@ -497,8 +512,15 @@ export const DeclarativeChart: React.FunctionComponent<DeclarativeChartProps> = 
           };
 
           const filteredTracesInfo = validTracesFilteredIndex.filter(trace => index.includes(trace.index));
-          let chartType =
-            chart.type === 'fallback' || chart.type === 'groupedverticalbar' ? chart.type : filteredTracesInfo[0].type;
+          let chartType: ChartType;
+
+          if (chart.type === 'annotation') {
+            chartType = 'annotation';
+          } else if (chart.type === 'fallback' || chart.type === 'groupedverticalbar') {
+            chartType = chart.type as ChartType;
+          } else {
+            chartType = (filteredTracesInfo[0]?.type ?? chart.type) as ChartType;
+          }
 
           if (
             validTracesFilteredIndex.some(trace => trace.type === 'line') &&
