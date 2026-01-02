@@ -1,4 +1,4 @@
-// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+// Jest Snapshot v1, https://goo.gl/fbAQLP
 
 exports[`calloutData should return an array of data points grouped by their date-based x coordinates 1`] = `
 Object {
@@ -2547,7 +2547,8 @@ exports[`createStringYAxisForHorizontalBarChartWithAxis should render y-axis lab
 </g>
 `;
 
-exports[`createWrapOfXLabels should retain full x-axis labels when their length is less than noOfCharsToTruncate\\n  and showXAxisLablesTooltip is true 1`] = `
+exports[`createWrapOfXLabels should retain full x-axis labels when their length is less than noOfCharsToTruncate
+  and showXAxisLablesTooltip is true 1`] = `
 <g
   fill="none"
   font-family="sans-serif"
@@ -2640,7 +2641,8 @@ exports[`createWrapOfXLabels should retain full x-axis labels when their length 
 </g>
 `;
 
-exports[`createWrapOfXLabels should truncate x-axis labels when their length exceeds noOfCharsToTruncate\\n  and showXAxisLablesTooltip is true 1`] = `
+exports[`createWrapOfXLabels should truncate x-axis labels when their length exceeds noOfCharsToTruncate
+  and showXAxisLablesTooltip is true 1`] = `
 <g
   fill="none"
   font-family="sans-serif"
@@ -3597,7 +3599,8 @@ exports[`createYAxisLabels should retain full y-axis labels when truncateLabel i
 </g>
 `;
 
-exports[`createYAxisLabels should truncate y-axis labels when their length exceeds noOfCharsToTruncate\\n  and truncateLabel is true 1`] = `
+exports[`createYAxisLabels should truncate y-axis labels when their length exceeds noOfCharsToTruncate
+  and truncateLabel is true 1`] = `
 <g
   fill="none"
   font-family="sans-serif"
@@ -3949,7 +3952,8 @@ Object {
 }
 `;
 
-exports[`getUnique should return an array of data points with unique values\\ndetermined by the provided comparison key 1`] = `
+exports[`getUnique should return an array of data points with unique values
+determined by the provided comparison key 1`] = `
 Array [
   Object {
     "values": Array [

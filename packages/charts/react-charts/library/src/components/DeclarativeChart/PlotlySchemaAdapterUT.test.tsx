@@ -146,19 +146,19 @@ describe('isMonthArray', () => {
 
 describe('correctYearMonth', () => {
   test('Should return dates array when input array contains months data', () => {
-    expect(correctYearMonth([10, 11, 1])).toStrictEqual(['10 01, 2024', '11 01, 2024', '1 01, 2025']);
+    expect(correctYearMonth([10, 11, 1])).toStrictEqual(['10 01, 2025', '11 01, 2025', '1 01, 2026']);
   });
 
   test('Should return error when input array contains invalid months', () => {
-    expect(correctYearMonth([10, 11, 16])).toStrictEqual(['10 01, 2025', '11 01, 2025', null]);
+    expect(correctYearMonth([10, 11, 16])).toStrictEqual(['10 01, 2026', '11 01, 2026', null]);
   });
 
   test('Should return dates array when input array contains months data in MMM format', () => {
-    expect(correctYearMonth(['January', 'February'])).toStrictEqual(['January 01, 2025', 'February 01, 2025']);
+    expect(correctYearMonth(['January', 'February'])).toStrictEqual(['January 01, 2026', 'February 01, 2026']);
   });
 
   test('Should return dates array when input array contains months data in MM format', () => {
-    expect(correctYearMonth(['Jan', 'Feb'])).toStrictEqual(['Jan 01, 2025', 'Feb 01, 2025']);
+    expect(correctYearMonth(['Jan', 'Feb'])).toStrictEqual(['Jan 01, 2026', 'Feb 01, 2026']);
   });
 
   test('Should return dates array when input array is empty', () => {
@@ -315,7 +315,9 @@ describe('transform Plotly Json To chart Props', () => {
       textColor: '#ffffff',
       fontSize: '12px',
     });
-    expect(relative?.layout).toBeUndefined();
+    expect(relative?.layout).toEqual({
+      clipToBounds: false,
+    });
     expect(relative?.connector).toBeUndefined();
 
     expect(pixel).toBeDefined();
@@ -325,8 +327,10 @@ describe('transform Plotly Json To chart Props', () => {
       y: 40,
     });
     expect(pixel?.layout).toEqual({
+      clipToBounds: false,
       offsetX: 15,
       offsetY: 12,
+      verticalAlign: 'top',
     });
     expect(pixel?.style).toEqual({
       textColor: '#111111',
@@ -351,7 +355,9 @@ describe('transform Plotly Json To chart Props', () => {
       textColor: '#222222',
       fontSize: '12px',
     });
-    expect(domain?.layout).toBeUndefined();
+    expect(domain?.layout).toEqual({
+      clipToBounds: false,
+    });
     expect(domain?.connector).toBeUndefined();
   });
 
