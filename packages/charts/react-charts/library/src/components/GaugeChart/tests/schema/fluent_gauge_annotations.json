@@ -1,0 +1,95 @@
+{
+  "title": "Gauge Chart with Annotations - Performance Metrics",
+  "description": "Test data for gauge chart with threshold annotations",
+  "props": {
+    "width": 300,
+    "height": 150,
+    "chartValue": 65,
+    "maxValue": 100,
+    "minValue": 0,
+    "chartTitle": "Performance Metrics",
+    "sublabel": "with threshold annotations",
+    "segments": [
+      {
+        "legend": "Low",
+        "size": 33,
+        "color": "error"
+      },
+      {
+        "legend": "Medium",
+        "size": 33,
+        "color": "warning"
+      },
+      {
+        "legend": "High",
+        "size": 34,
+        "color": "success"
+      }
+    ],
+    "annotations": [
+      {
+        "id": "threshold-low",
+        "type": "threshold",
+        "text": "Low",
+        "position": "outer-arc",
+        "value": 33,
+        "color": "#E81123",
+        "fontSize": 11
+      },
+      {
+        "id": "threshold-medium",
+        "type": "threshold",
+        "text": "Medium",
+        "position": "outer-arc",
+        "value": 66,
+        "color": "#FFB900",
+        "fontSize": 11
+      },
+      {
+        "id": "threshold-high",
+        "type": "threshold",
+        "text": "High",
+        "position": "outer-arc",
+        "value": 100,
+        "color": "#107C10",
+        "fontSize": 11
+      },
+      {
+        "id": "current-value",
+        "type": "value-marker",
+        "text": "65%",
+        "position": "above-needle",
+        "fontSize": 14,
+        "color": "currentColor"
+      }
+    ],
+    "hideLegend": false
+  },
+  "testScenarios": [
+    {
+      "name": "Low value range",
+      "chartValue": 20,
+      "expectedVisuals": ["Annotations visible at low position", "Needle points to Low threshold"]
+    },
+    {
+      "name": "Mid value range",
+      "chartValue": 50,
+      "expectedVisuals": ["Annotations visible at medium position", "Needle between Low and Medium"]
+    },
+    {
+      "name": "High value range",
+      "chartValue": 85,
+      "expectedVisuals": ["Annotations visible at high position", "Needle in High zone"]
+    },
+    {
+      "name": "Edge case: Min value",
+      "chartValue": 0,
+      "expectedVisuals": ["All annotations visible", "Needle at minimum"]
+    },
+    {
+      "name": "Edge case: Max value",
+      "chartValue": 100,
+      "expectedVisuals": ["All annotations visible", "Needle at maximum"]
+    }
+  ]
+}

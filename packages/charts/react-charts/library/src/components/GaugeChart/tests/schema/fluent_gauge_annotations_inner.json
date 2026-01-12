@@ -1,0 +1,95 @@
+{
+  "title": "Gauge Chart with Inner Annotations - Temperature Control",
+  "description": "Test data for gauge chart with zone labels positioned at inner arc",
+  "props": {
+    "width": 300,
+    "height": 150,
+    "chartValue": 75,
+    "maxValue": 100,
+    "minValue": 0,
+    "chartTitle": "Temperature Gauge",
+    "sublabel": "with inner zone labels",
+    "segments": [
+      {
+        "legend": "Safe",
+        "size": 33,
+        "color": "success"
+      },
+      {
+        "legend": "Caution",
+        "size": 34,
+        "color": "warning"
+      },
+      {
+        "legend": "Danger",
+        "size": 33,
+        "color": "error"
+      }
+    ],
+    "annotations": [
+      {
+        "id": "label-safe",
+        "type": "zone-label",
+        "text": "Safe Zone",
+        "position": "inner-arc",
+        "value": 25,
+        "fontSize": 12,
+        "color": "#107C10"
+      },
+      {
+        "id": "label-caution",
+        "type": "zone-label",
+        "text": "Caution",
+        "position": "inner-arc",
+        "value": 50,
+        "fontSize": 12,
+        "color": "#FFB900"
+      },
+      {
+        "id": "label-danger",
+        "type": "zone-label",
+        "text": "Danger",
+        "position": "inner-arc",
+        "value": 75,
+        "fontSize": 12,
+        "color": "#E81123"
+      },
+      {
+        "id": "current-marker",
+        "type": "value-marker",
+        "text": "75°C",
+        "position": "below-needle",
+        "fontSize": 13,
+        "color": "currentColor"
+      }
+    ],
+    "hideLegend": false
+  },
+  "testScenarios": [
+    {
+      "name": "Safe temperature",
+      "chartValue": 20,
+      "expectedVisuals": ["Needle in Safe zone", "Inner annotations clearly visible"]
+    },
+    {
+      "name": "Caution temperature",
+      "chartValue": 50,
+      "expectedVisuals": ["Needle in Caution zone", "Zone labels properly positioned"]
+    },
+    {
+      "name": "Danger temperature",
+      "chartValue": 90,
+      "expectedVisuals": ["Needle in Danger zone", "All annotations rendered without overlap"]
+    },
+    {
+      "name": "Overlapping annotations stress",
+      "chartValue": 33,
+      "expectedVisuals": ["Multiple annotations near needle", "No text overlap"]
+    },
+    {
+      "name": "Extreme low",
+      "chartValue": 5,
+      "expectedVisuals": ["Needle nearly at minimum", "Zone labels visible"]
+    }
+  ]
+}

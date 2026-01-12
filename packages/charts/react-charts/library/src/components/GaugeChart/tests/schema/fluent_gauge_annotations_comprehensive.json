@@ -1,0 +1,313 @@
+{
+  "title": "Gauge Chart Comprehensive Annotations - Edge Cases",
+  "description": "Test data covering edge cases, different sizes, and comprehensive annotation scenarios",
+  "testScenariosBase": [
+    {
+      "title": "Large gauge with many annotations",
+      "width": 500,
+      "height": 250,
+      "chartValue": 50,
+      "maxValue": 100,
+      "minValue": 0,
+      "segments": [
+        { "legend": "Poor", "size": 25, "color": "error" },
+        { "legend": "Fair", "size": 25, "color": "warning" },
+        { "legend": "Good", "size": 25, "color": "success" },
+        { "legend": "Excellent", "size": 25, "color": "success" }
+      ],
+      "annotations": [
+        {
+          "id": "title-label",
+          "type": "text-label",
+          "text": "System Performance",
+          "position": "top",
+          "fontSize": 16,
+          "color": "currentColor"
+        },
+        {
+          "id": "marker-0",
+          "type": "threshold",
+          "text": "0%",
+          "position": "outer-arc",
+          "value": 0,
+          "fontSize": 11,
+          "offset": [0, -5]
+        },
+        {
+          "id": "marker-25",
+          "type": "threshold",
+          "text": "25%",
+          "position": "outer-arc",
+          "value": 25,
+          "fontSize": 11,
+          "offset": [0, 5]
+        },
+        {
+          "id": "marker-50",
+          "type": "threshold",
+          "text": "50%",
+          "position": "outer-arc",
+          "value": 50,
+          "fontSize": 11,
+          "offset": [0, 5]
+        },
+        {
+          "id": "marker-75",
+          "type": "threshold",
+          "text": "75%",
+          "position": "outer-arc",
+          "value": 75,
+          "fontSize": 11,
+          "offset": [0, 5]
+        },
+        {
+          "id": "marker-100",
+          "type": "threshold",
+          "text": "100%",
+          "position": "outer-arc",
+          "value": 100,
+          "fontSize": 11,
+          "offset": [0, -5]
+        },
+        {
+          "id": "current-value",
+          "type": "value-marker",
+          "text": "50%",
+          "position": "above-needle",
+          "fontSize": 15,
+          "color": "currentColor"
+        }
+      ],
+      "testCases": [
+        {
+          "value": 0,
+          "label": "Minimum value"
+        },
+        {
+          "value": 25,
+          "label": "Poor performance"
+        },
+        {
+          "value": 50,
+          "label": "Mid range"
+        },
+        {
+          "value": 75,
+          "label": "Good performance"
+        },
+        {
+          "value": 100,
+          "label": "Excellent performance"
+        }
+      ]
+    },
+    {
+      "title": "Small gauge with minimal annotations",
+      "width": 150,
+      "height": 75,
+      "chartValue": 40,
+      "maxValue": 100,
+      "minValue": 0,
+      "segments": [
+        { "legend": "Low", "size": 50, "color": "error" },
+        { "legend": "High", "size": 50, "color": "success" }
+      ],
+      "annotations": [
+        {
+          "id": "mid-point",
+          "type": "threshold",
+          "text": "50%",
+          "position": "outer-arc",
+          "value": 50,
+          "fontSize": 9
+        }
+      ],
+      "testCases": [
+        { "value": 20, "label": "Low zone" },
+        { "value": 50, "label": "Boundary" },
+        { "value": 80, "label": "High zone" }
+      ]
+    },
+    {
+      "title": "Gauge with custom minValue/maxValue",
+      "width": 300,
+      "height": 150,
+      "chartValue": 50,
+      "maxValue": 200,
+      "minValue": -100,
+      "segments": [
+        { "legend": "Negative", "size": 100, "color": "error" },
+        { "legend": "Positive", "size": 200, "color": "success" }
+      ],
+      "annotations": [
+        {
+          "id": "zero-point",
+          "type": "threshold",
+          "text": "Zero",
+          "position": "outer-arc",
+          "value": 0,
+          "fontSize": 12,
+          "color": "currentColor"
+        },
+        {
+          "id": "current",
+          "type": "value-marker",
+          "text": "+50",
+          "position": "above-needle",
+          "fontSize": 13
+        }
+      ],
+      "testCases": [
+        { "value": -100, "label": "Minimum" },
+        { "value": 0, "label": "Zero point" },
+        { "value": 100, "label": "Positive" },
+        { "value": 200, "label": "Maximum" }
+      ]
+    },
+    {
+      "title": "Gauge with annotations at all positions",
+      "width": 350,
+      "height": 175,
+      "chartValue": 55,
+      "maxValue": 100,
+      "minValue": 0,
+      "segments": [
+        { "legend": "Seg1", "size": 25, "color": "error" },
+        { "legend": "Seg2", "size": 25, "color": "warning" },
+        { "legend": "Seg3", "size": 25, "color": "success" },
+        { "legend": "Seg4", "size": 25, "color": "success" }
+      ],
+      "annotations": [
+        {
+          "id": "pos-top",
+          "type": "text-label",
+          "text": "Top",
+          "position": "top",
+          "fontSize": 12
+        },
+        {
+          "id": "pos-bottom",
+          "type": "text-label",
+          "text": "Bottom",
+          "position": "bottom",
+          "fontSize": 12
+        },
+        {
+          "id": "pos-above-needle",
+          "type": "value-marker",
+          "text": "↑",
+          "position": "above-needle",
+          "fontSize": 14
+        },
+        {
+          "id": "pos-below-needle",
+          "type": "value-marker",
+          "text": "↓",
+          "position": "below-needle",
+          "fontSize": 14
+        },
+        {
+          "id": "pos-outer-25",
+          "type": "threshold",
+          "text": "Q1",
+          "position": "outer-arc",
+          "value": 25,
+          "fontSize": 11
+        },
+        {
+          "id": "pos-outer-75",
+          "type": "threshold",
+          "text": "Q3",
+          "position": "outer-arc",
+          "value": 75,
+          "fontSize": 11
+        },
+        {
+          "id": "pos-inner-50",
+          "type": "zone-label",
+          "text": "Center",
+          "position": "inner-arc",
+          "value": 50,
+          "fontSize": 11
+        }
+      ],
+      "testCases": [
+        { "value": 20, "label": "Low with all positions" },
+        { "value": 55, "label": "Mid with all positions" },
+        { "value": 90, "label": "High with all positions" }
+      ]
+    },
+    {
+      "title": "Gauge with rotated and offset annotations",
+      "width": 300,
+      "height": 150,
+      "chartValue": 60,
+      "maxValue": 100,
+      "minValue": 0,
+      "segments": [
+        { "legend": "Low", "size": 33, "color": "error" },
+        { "legend": "Mid", "size": 34, "color": "warning" },
+        { "legend": "High", "size": 33, "color": "success" }
+      ],
+      "annotations": [
+        {
+          "id": "rotated-anno",
+          "type": "text-label",
+          "text": "ROTATED",
+          "position": "outer-arc",
+          "value": 50,
+          "fontSize": 12,
+          "rotation": 45,
+          "offset": [10, 10]
+        },
+        {
+          "id": "offset-anno",
+          "type": "threshold",
+          "text": "Offset",
+          "position": "outer-arc",
+          "value": 30,
+          "fontSize": 11,
+          "offset": [5, -10]
+        }
+      ],
+      "testCases": [
+        { "value": 30, "label": "Rotated and offset visible" },
+        { "value": 60, "label": "Standard rendering" }
+      ]
+    }
+  ],
+  "edgeCasesAndCornerCases": [
+    {
+      "description": "Many annotations close together",
+      "concern": "Text overlap and readability"
+    },
+    {
+      "description": "Very small gauge",
+      "concern": "Annotation visibility and positioning"
+    },
+    {
+      "description": "Very large gauge",
+      "concern": "Spacing and proportions"
+    },
+    {
+      "description": "Annotations with extreme values",
+      "concern": "Positioning calculations"
+    },
+    {
+      "description": "RTL mode with annotations",
+      "concern": "Text direction and positioning"
+    },
+    {
+      "description": "Different font sizes in annotations",
+      "concern": "Layout consistency"
+    },
+    {
+      "description": "Very long annotation text",
+      "concern": "Text truncation and overflow"
+    },
+    {
+      "description": "Empty annotation text",
+      "concern": "Rendering and spacing"
+    }
+  ]
+}

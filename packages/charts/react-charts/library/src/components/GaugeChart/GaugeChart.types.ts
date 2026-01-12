@@ -34,6 +34,79 @@ export interface GaugeChartSegment {
 }
 
 /**
+ * Position for gauge annotations
+ * {@docCategory GaugeChart}
+ */
+export type GaugeAnnotationPosition = 'above-needle' | 'below-needle' | 'inner-arc' | 'outer-arc' | 'top' | 'bottom';
+
+/**
+ * Annotation type for gauge charts
+ * {@docCategory GaugeChart}
+ */
+export type GaugeAnnotationType = 'text-label' | 'value-marker' | 'threshold' | 'zone-label';
+
+/**
+ * Gauge Chart annotation interface
+ * {@docCategory GaugeChart}
+ */
+export interface GaugeChartAnnotation {
+  /**
+   * Unique identifier for the annotation
+   */
+  id: string;
+
+  /**
+   * Type of annotation
+   */
+  type: GaugeAnnotationType;
+
+  /**
+   * Text content of the annotation
+   */
+  text: string;
+
+  /**
+   * Position of the annotation relative to the gauge
+   */
+  position?: GaugeAnnotationPosition;
+
+  /**
+   * Value on the gauge where annotation should appear (0 to maxValue)
+   */
+  value?: number;
+
+  /**
+   * Color of the annotation text
+   */
+  color?: string;
+
+  /**
+   * Font size of the annotation
+   */
+  fontSize?: number;
+
+  /**
+   * Rotation angle for text (in degrees)
+   */
+  rotation?: number;
+
+  /**
+   * Offset from the calculated position (x, y)
+   */
+  offset?: [number, number];
+
+  /**
+   * Additional styling class name
+   */
+  className?: string;
+
+  /**
+   * Accessibility data for the annotation
+   */
+  accessibilityData?: AccessibilityProps;
+}
+
+/**
  * {@docCategory GaugeChart}
  */
 export type GaugeValueFormat = 'percentage' | 'fraction';
@@ -152,6 +225,11 @@ export interface GaugeChartProps {
   roundCorners?: boolean;
 
   /**
+   * Array of annotations to display on the gauge chart
+   */
+  annotations?: GaugeChartAnnotation[];
+
+  /**
    * Optional callback to access the Chart interface. Use this instead of ref for accessing
    * the public methods and properties of the component.
    */
@@ -262,4 +340,14 @@ export interface GaugeChartStyles {
    * Styles for the chart wrapper div
    */
   chartWrapper?: string;
+
+  /**
+   * Styles for annotations
+   */
+  annotation?: string;
+
+  /**
+   * Styles for annotation text
+   */
+  annotationText?: string;
 }

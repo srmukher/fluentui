@@ -18,7 +18,7 @@ import {
 import { formatToLocaleString } from '@fluentui/chart-utilities';
 import { SVGTooltipText } from '../../utilities/SVGTooltipText';
 import { Legend, LegendShape, Legends, Shape } from '../Legends/index';
-import { GaugeChartVariant, GaugeValueFormat, GaugeChartProps, GaugeChartSegment } from './GaugeChart.types';
+import { GaugeChartVariant, GaugeValueFormat, GaugeChartProps, GaugeChartSegment, GaugeChartAnnotation } from './GaugeChart.types';
 import { useArrowNavigationGroup } from '@fluentui/react-tabster';
 import { ChartPopover } from '../CommonComponents/ChartPopover';
 import { useImageExport } from '../../utilities/hooks';
@@ -241,6 +241,88 @@ export const GaugeChart: React.FunctionComponent<GaugeChartProps> = React.forwar
       return {
         arcs,
       };
+    }
+
+    function _calculateAnnotationPosition(annotation: GaugeChartAnnotation): { x: number; y: number; rotation: number } {
+      const { position = 'outer-arc', value = 0, rotation = 0, offset = [0, 0] } = annotation;
+      const angleFromValue = ((value - _minValue) / (_maxValue - _minValue)) * Math.PI - Math.PI / 2;
+
+      let x = 0;
+      let y = 0;
+      let finalRotation = rotation;
+
+      switch (position) {
+        case 'outer-arc': {
+          const outerDistance = _outerRadius + 20;
+          x = outerDistance * Math.cos(angleFromValue);
+          y = outerDistance * Math.sin(angleFromValue);
+          finalRotation = (angleFromValue * 180) / Math.PI + 90;
+          break;
+        }
+        case 'inner-arc': {
+          const innerDistance = (_outerRadius + _innerRadius) / 2;
+          x = innerDistance * Math.cos(angleFromValue);
+          y = innerDistance * Math.sin(angleFromValue);
+          break;
+        }
+        case 'above-needle': {
+          x = 0;
+          y = -(_innerRadius + 10);
+          break;
+        }
+        case 'below-needle': {
+          x = 0;
+          y = _innerRadius + 10;
+          break;
+        }
+        case 'top': {
+          x = 0;
+          y = -(_outerRadius + 25);
+          break;
+        }
+        case 'bottom': {
+          x = 0;
+          y = _outerRadius + 25;
+          break;
+        }
+        default:
+          break;
+      }
+
+      return {
+        x: x + offset[0],
+        y: y + offset[1],
+        rotation: finalRotation,
+      };
+    }
+
+    function _renderAnnotations() {
+      if (!props.annotations || props.annotations.length === 0) {
+        return null;
+      }
+
+      return props.annotations.map((annotation) => {
+        const { id, text, color = 'currentColor', fontSize = 12, className } = annotation;
+        const pos = _calculateAnnotationPosition(annotation);
+
+        return (
+          <g key={id} transform={`translate(${pos.x}, ${pos.y})`}>
+            <text
+              id={`gauge-annotation-${id}`}
+              x={0}
+              y={0}
+              textAnchor="middle"
+              className={className || classes.annotationText}
+              fill={color}
+              style={{ fontSize: `${fontSize}px` }}
+              transform={`rotate(${pos.rotation})`}
+              {...getAccessibleDataObject(annotation.accessibilityData, 'text', false)}
+            >
+              {text}
+            </text>
+          </g>
+        );
+      });
     }
 
     function _renderNeedle() {
@@ -662,6 +744,7 @@ export const GaugeChart: React.FunctionComponent<GaugeChartProps> = React.forwar
                   </React.Fragment>
                 );
               })}
+              {_renderAnnotations()}
               {_renderNeedle()}
               <g
                 onMouseEnter={e => _handleMouseOver(e, 'Chart value')}
